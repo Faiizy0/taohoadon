@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Eye, X, Download, Copy } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Eye, X, Download, Copy, Upload } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
 
 interface ProductItem {
@@ -157,6 +157,7 @@ export default function App() {
   // App State
   const [lang, setLang] = useState<'en' | 'vi'>('en');
   const t = translations[lang];
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [view, setView] = useState<'editor' | 'history'>('editor');
   const [invoices, setInvoices] = useState<Invoice[]>(() => {
@@ -496,8 +497,32 @@ export default function App() {
     }
   };
 
-  const cancelDelete = () => {
-    setInvoiceToDelete(null);
+  const exportData = () => {
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(invoices));
+    const downloadAnchorNode = document.createElement('a');
+    downloadAnchorNode.setAttribute("href", dataStr);
+    downloadAnchorNode.setAttribute("download", "invoice_history.json");
+    document.body.appendChild(downloadAnchorNode);
+    downloadAnchorNode.click();
+    downloadAnchorNode.remove();
+    showToast('Data exported successfully!');
+  };
+
+  const importData = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const importedInvoices = JSON.parse(e.target?.result as string);
+        setInvoices(importedInvoices);
+        showToast('Data imported successfully!');
+      } catch (error) {
+        showToast('Failed to import data. Invalid file format.');
+      }
+    };
+    reader.readAsText(file);
   };
 
   const toggleLanguage = () => {
@@ -519,13 +544,36 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-3">
-            <button
-              onClick={toggleLanguage}
-              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              <Globe size={16} className="text-blue-500" />
-              {lang === 'en' ? 'VI' : 'EN'}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={exportData}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                title="Export Data"
+              >
+                <Download size={16} />
+              </button>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                title="Import Data"
+              >
+                <Upload size={16} />
+              </button>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={importData}
+                className="hidden"
+                accept=".json"
+              />
+              <button
+                onClick={toggleLanguage}
+                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Globe size={16} className="text-blue-500" />
+                {lang === 'en' ? 'VI' : 'EN'}
+              </button>
+            </div>
 
             <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 p-1">
               <button
@@ -979,7 +1027,7 @@ export default function App() {
             <p className="text-gray-500 text-sm mb-6">This action cannot be undone.</p>
             <div className="flex justify-end gap-3">
               <button 
-                onClick={cancelDelete} 
+                onClick={() => setInvoiceToDelete(null)} 
                 className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
               >
                 {t.cancel}
