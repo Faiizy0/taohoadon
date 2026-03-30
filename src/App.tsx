@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Eye, X, Download } from 'lucide-react';
+import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Eye, X, Download, Copy } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
 
 interface ProductItem {
@@ -63,7 +63,9 @@ const translations = {
     saveSuccess: "Invoice saved successfully!",
     exportImage: "Preview Invoice",
     downloadImage: "Save Image",
+    copyImage: "Copy Image",
     exportSuccess: "Image saved successfully!",
+    copySuccess: "Image copied to clipboard!",
     colDate: "Ngày",
     colProduct: "Mẫu",
     colQty: "Số lượng",
@@ -117,7 +119,9 @@ const translations = {
     saveSuccess: "Lưu hóa đơn thành công!",
     exportImage: "Xem Hóa đơn",
     downloadImage: "Lưu Ảnh",
+    copyImage: "Sao chép Ảnh",
     exportSuccess: "Lưu ảnh thành công!",
+    copySuccess: "Đã sao chép ảnh vào khay nhớ tạm!",
     colDate: "Ngày",
     colProduct: "Mẫu",
     colQty: "Số lượng",
@@ -343,6 +347,39 @@ export default function App() {
     } catch (error) {
       console.error('Error exporting image:', error);
       showToast('Export failed');
+    }
+  };
+
+  const handleCopyImage = async () => {
+    const element = document.getElementById('export-table-container');
+    if (!element) return;
+    
+    try {
+      showToast('Generating image...');
+      
+      const blob = await htmlToImage.toBlob(element, {
+        backgroundColor: '#ffffff',
+        pixelRatio: 2,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
+        }
+      });
+      
+      if (!blob) {
+        throw new Error('Failed to generate image blob');
+      }
+
+      await navigator.clipboard.write([
+        new ClipboardItem({
+          [blob.type]: blob
+        })
+      ]);
+      
+      showToast(t.copySuccess);
+    } catch (error) {
+      console.error('Error copying image:', error);
+      showToast('Copy failed. Your browser might not support this feature.');
     }
   };
 
@@ -805,6 +842,13 @@ export default function App() {
                 {t.exportImage}
               </h3>
               <div className="flex items-center gap-3">
+                <button 
+                  onClick={handleCopyImage}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium transition-colors shadow-sm"
+                >
+                  <Copy size={18} />
+                  <span className="hidden sm:inline">{t.copyImage}</span>
+                </button>
                 <button 
                   onClick={handleSaveImage}
                   className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm"
