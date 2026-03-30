@@ -1,0 +1,793 @@
+import React, { useState, useMemo, useEffect } from 'react';
+import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Download } from 'lucide-react';
+import html2canvas from 'html2canvas';
+
+interface ProductItem {
+  id: string;
+  name: string;
+  price: number;
+  quantity: number;
+  orderDate: string;
+}
+
+interface Invoice {
+  id: string;
+  customerName: string;
+  invoiceDate: string;
+  items: ProductItem[];
+  total: number;
+  updatedAt: number;
+}
+
+const translations = {
+  en: {
+    appTitle: "Invoice Calculator",
+    appSubtitle: "Create bills and calculate totals in VND",
+    editor: "Editor",
+    history: "History",
+    clientInfo: "Client Information",
+    customerNameLabel: "1. Customer Name",
+    customerNamePlaceholder: "Enter customer name",
+    invoiceDateLabel: "2. Invoice Date",
+    ordersByDate: "Orders by Date",
+    noOrders: "No orders added yet.",
+    addNewOrder: "Add New Order",
+    orderDate: "Order Date",
+    productNameLabel: "3. Name of Product",
+    productNamePlaceholder: "e.g. Laptop",
+    quantityLabel: "4. Quantity",
+    priceLabel: "5. Price (VND)",
+    addBtn: "Add",
+    invoiceSummary: "Invoice Summary",
+    totalAmount: "Total Amount",
+    billedTo: "Billed To",
+    totalProductTypes: "Total Product Types",
+    orderDays: "Order Days",
+    day: "day",
+    days: "days",
+    saveInvoice: "Save Invoice",
+    updateInvoice: "Update Invoice",
+    startNew: "Start New Invoice",
+    editingSaved: "Editing Saved Invoice",
+    invoiceHistory: "Invoice History",
+    newInvoice: "New Invoice",
+    noInvoices: "No invoices saved yet.",
+    thDate: "Date",
+    thCustomer: "Customer",
+    thItems: "Items",
+    thTotal: "Total (VND)",
+    thActions: "Actions",
+    unnamedClient: "Unnamed Client",
+    itemsCount: "types",
+    each: "each",
+    saveSuccess: "Invoice saved successfully!",
+    exportImage: "Export Image",
+    exportSuccess: "Image exported successfully!",
+    colDate: "Ngày",
+    colProduct: "Mẫu",
+    colQty: "Số lượng",
+    colPrice: "Giá",
+    colTotal: "Thành Tiền",
+    totalLabel: "Tổng",
+    deleteConfirm: "Are you sure you want to delete this invoice?",
+    cancel: "Cancel",
+    confirm: "Confirm Delete"
+  },
+  vi: {
+    appTitle: "Máy tính Hóa đơn",
+    appSubtitle: "Tạo hóa đơn và tính tổng tiền bằng VNĐ",
+    editor: "Soạn thảo",
+    history: "Lịch sử",
+    clientInfo: "Thông tin Khách hàng",
+    customerNameLabel: "1. Tên Khách hàng",
+    customerNamePlaceholder: "Nhập tên khách hàng",
+    invoiceDateLabel: "2. Ngày lập Hóa đơn",
+    ordersByDate: "Đơn hàng theo Ngày",
+    noOrders: "Chưa có đơn hàng nào.",
+    addNewOrder: "Thêm Đơn hàng Mới",
+    orderDate: "Ngày đặt hàng",
+    productNameLabel: "3. Tên Sản phẩm",
+    productNamePlaceholder: "VD: Laptop",
+    quantityLabel: "4. Số lượng",
+    priceLabel: "5. Giá (VNĐ)",
+    addBtn: "Thêm",
+    invoiceSummary: "Tóm tắt Hóa đơn",
+    totalAmount: "Tổng cộng",
+    billedTo: "Người nhận",
+    totalProductTypes: "Tổng số loại sản phẩm",
+    orderDays: "Số ngày đặt hàng",
+    day: "ngày",
+    days: "ngày",
+    saveInvoice: "Lưu Hóa đơn",
+    updateInvoice: "Cập nhật Hóa đơn",
+    startNew: "Tạo Hóa đơn Mới",
+    editingSaved: "Đang sửa Hóa đơn đã lưu",
+    invoiceHistory: "Lịch sử Hóa đơn",
+    newInvoice: "Hóa đơn Mới",
+    noInvoices: "Chưa có hóa đơn nào được lưu.",
+    thDate: "Ngày",
+    thCustomer: "Khách hàng",
+    thItems: "Mặt hàng",
+    thTotal: "Tổng (VNĐ)",
+    thActions: "Thao tác",
+    unnamedClient: "Khách hàng ẩn danh",
+    itemsCount: "loại",
+    each: "mỗi cái",
+    saveSuccess: "Lưu hóa đơn thành công!",
+    exportImage: "Xuất Ảnh",
+    exportSuccess: "Xuất ảnh thành công!",
+    colDate: "Ngày",
+    colProduct: "Mẫu",
+    colQty: "Số lượng",
+    colPrice: "Giá",
+    colTotal: "Thành Tiền",
+    totalLabel: "Tổng",
+    deleteConfirm: "Bạn có chắc chắn muốn xóa hóa đơn này không?",
+    cancel: "Hủy",
+    confirm: "Xác nhận Xóa"
+  }
+};
+
+export default function App() {
+  // App State
+  const [lang, setLang] = useState<'en' | 'vi'>('en');
+  const t = translations[lang];
+
+  const [view, setView] = useState<'editor' | 'history'>('editor');
+  const [invoices, setInvoices] = useState<Invoice[]>(() => {
+    const saved = localStorage.getItem('invoice_history');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Current Invoice State
+  const [currentInvoiceId, setCurrentInvoiceId] = useState<string | null>(() => localStorage.getItem('draft_invoiceId') || null);
+  const [customerName, setCustomerName] = useState(() => localStorage.getItem('draft_customerName') || '');
+  const [invoiceDate, setInvoiceDate] = useState(() => {
+    return localStorage.getItem('draft_invoiceDate') || new Date().toISOString().split('T')[0];
+  });
+  const [items, setItems] = useState<ProductItem[]>(() => {
+    const saved = localStorage.getItem('draft_items');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  // New Item State
+  const [newItemName, setNewItemName] = useState('');
+  const [newItemPrice, setNewItemPrice] = useState('');
+  const [newItemQuantity, setNewItemQuantity] = useState('1');
+  const [newItemDate, setNewItemDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+
+  // Save to local storage whenever invoices change
+  useEffect(() => {
+    localStorage.setItem('invoice_history', JSON.stringify(invoices));
+  }, [invoices]);
+
+  // Save draft to local storage
+  useEffect(() => {
+    if (currentInvoiceId) localStorage.setItem('draft_invoiceId', currentInvoiceId);
+    else localStorage.removeItem('draft_invoiceId');
+    
+    localStorage.setItem('draft_customerName', customerName);
+    localStorage.setItem('draft_invoiceDate', invoiceDate);
+    localStorage.setItem('draft_items', JSON.stringify(items));
+  }, [currentInvoiceId, customerName, invoiceDate, items]);
+
+  const formatVND = (amount: number) => {
+    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  };
+
+  const formatDate = (dateString: string) => {
+    if (!dateString) return '—';
+    return new Date(dateString).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+  };
+
+  const formatPriceInput = (value: string) => {
+    if (!value) return '';
+    return value.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+
+  const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value.replace(/\./g, '');
+    if (/^\d*$/.test(rawValue)) {
+      setNewItemPrice(rawValue);
+    }
+  };
+
+  const addItem = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newItemName || !newItemPrice || !newItemDate) return;
+
+    const price = parseFloat(newItemPrice);
+    const quantity = parseInt(newItemQuantity, 10);
+
+    if (isNaN(price) || isNaN(quantity) || price < 0 || quantity < 1) return;
+
+    const newItem: ProductItem = {
+      id: Date.now().toString(),
+      name: newItemName,
+      price,
+      quantity,
+      orderDate: newItemDate
+    };
+
+    setItems([...items, newItem]);
+    setNewItemName('');
+    setNewItemPrice('');
+    setNewItemQuantity('1');
+  };
+
+  const removeItem = (id: string) => {
+    setItems(items.filter(item => item.id !== id));
+  };
+
+  const updateQuantity = (id: string, delta: number) => {
+    setItems(items.map(item => {
+      if (item.id === id) {
+        const newQuantity = Math.max(1, item.quantity + delta);
+        return { ...item, quantity: newQuantity };
+      }
+      return item;
+    }));
+  };
+
+  const total = useMemo(() => {
+    return items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  }, [items]);
+
+  const groupedItems = useMemo(() => {
+    const groups = items.reduce((acc, item) => {
+      if (!acc[item.orderDate]) {
+        acc[item.orderDate] = [];
+      }
+      acc[item.orderDate].push(item);
+      return acc;
+    }, {} as Record<string, ProductItem[]>);
+    
+    return Object.keys(groups).sort().map(date => ({
+      date,
+      items: groups[date]
+    }));
+  }, [items]);
+
+  const flattenedItems = useMemo(() => {
+    return groupedItems.flatMap(group => 
+      group.items.map((item, index) => ({
+        ...item,
+        isFirstInGroup: index === 0,
+        displayDate: group.date
+      }))
+    );
+  }, [groupedItems]);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const exportToImage = async () => {
+    const element = document.getElementById('export-table-container');
+    if (!element) return;
+    
+    try {
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        backgroundColor: '#ffffff'
+      });
+      
+      const image = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = image;
+      link.download = `Invoice_${customerName || 'Unnamed'}_${new Date().getTime()}.png`;
+      link.click();
+      showToast(t.exportSuccess);
+    } catch (error) {
+      console.error('Error exporting image:', error);
+      showToast('Export failed');
+    }
+  };
+
+  const saveInvoice = () => {
+    const newInvoice: Invoice = {
+      id: currentInvoiceId || Date.now().toString(),
+      customerName,
+      invoiceDate,
+      items,
+      total,
+      updatedAt: Date.now(),
+    };
+
+    if (currentInvoiceId) {
+      setInvoices(invoices.map(inv => inv.id === currentInvoiceId ? newInvoice : inv));
+    } else {
+      setInvoices([newInvoice, ...invoices]);
+      setCurrentInvoiceId(newInvoice.id);
+    }
+    showToast(t.saveSuccess);
+  };
+
+  const createNewInvoice = () => {
+    setCurrentInvoiceId(null);
+    setCustomerName('');
+    setInvoiceDate(new Date().toISOString().split('T')[0]);
+    setItems([]);
+    setView('editor');
+  };
+
+  const loadInvoice = (invoice: Invoice) => {
+    setCurrentInvoiceId(invoice.id);
+    setCustomerName(invoice.customerName);
+    setInvoiceDate(invoice.invoiceDate);
+    setItems(invoice.items);
+    setView('editor');
+  };
+
+  const confirmDelete = (id: string) => {
+    setInvoiceToDelete(id);
+  };
+
+  const executeDelete = () => {
+    if (invoiceToDelete) {
+      setInvoices(invoices.filter(inv => inv.id !== invoiceToDelete));
+      if (currentInvoiceId === invoiceToDelete) {
+        createNewInvoice();
+        setView('history');
+      }
+      setInvoiceToDelete(null);
+    }
+  };
+
+  const cancelDelete = () => {
+    setInvoiceToDelete(null);
+  };
+
+  const toggleLanguage = () => {
+    setLang(prev => prev === 'en' ? 'vi' : 'en');
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans p-4 md:p-8">
+      <div className="max-w-5xl mx-auto">
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-600 p-3 rounded-xl text-white shadow-sm">
+              <Calculator size={28} />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-gray-900">{t.appTitle}</h1>
+              <p className="text-sm text-gray-500">{t.appSubtitle}</p>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleLanguage}
+              className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <Globe size={16} className="text-blue-500" />
+              {lang === 'en' ? 'VI' : 'EN'}
+            </button>
+
+            <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 p-1">
+              <button
+                onClick={() => setView('editor')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  view === 'editor' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <FileText size={16} />
+                {t.editor}
+              </button>
+              <button
+                onClick={() => setView('history')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  view === 'history' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <History size={16} />
+                {t.history}
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {view === 'history' ? (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <History size={20} className="text-gray-400" />
+                {t.invoiceHistory}
+              </h2>
+              <button
+                onClick={createNewInvoice}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2"
+              >
+                <Plus size={16} />
+                {t.newInvoice}
+              </button>
+            </div>
+            <div className="p-0">
+              {invoices.length === 0 ? (
+                <div className="text-center py-12 text-gray-400">
+                  <FileText size={48} className="mx-auto mb-4 opacity-20" />
+                  <p>{t.noInvoices}</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500">
+                        <th className="p-4 font-medium">{t.thDate}</th>
+                        <th className="p-4 font-medium">{t.thCustomer}</th>
+                        <th className="p-4 font-medium">{t.thItems}</th>
+                        <th className="p-4 font-medium text-right">{t.thTotal}</th>
+                        <th className="p-4 font-medium text-right">{t.thActions}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {invoices.sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime() || b.updatedAt - a.updatedAt).map(inv => (
+                        <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="p-4 text-sm text-gray-900">{formatDate(inv.invoiceDate)}</td>
+                          <td className="p-4 text-sm font-medium text-gray-900">{inv.customerName || t.unnamedClient}</td>
+                          <td className="p-4 text-sm text-gray-500">{new Set(inv.items.map(item => item.name.trim().toLowerCase())).size} {t.itemsCount}</td>
+                          <td className="p-4 text-sm font-semibold text-gray-900 text-right">{formatVND(inv.total)}</td>
+                          <td className="p-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => loadInvoice(inv)}
+                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title={t.updateInvoice}
+                              >
+                                <Edit size={16} />
+                              </button>
+                              <button
+                                onClick={() => confirmDelete(inv.id)}
+                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Delete Invoice"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Left Column: Inputs & Items */}
+            <div className="lg:col-span-2 space-y-6">
+              
+              {/* Customer & Invoice Info */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <User size={20} className="text-gray-400" />
+                    {t.clientInfo}
+                  </h2>
+                  {currentInvoiceId && (
+                    <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-md font-medium flex items-center gap-1">
+                      <Edit size={12} /> {t.editingSaved}
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="customerName" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">
+                      {t.customerNameLabel}
+                    </label>
+                    <input
+                      id="customerName"
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder={t.customerNamePlaceholder}
+                      className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="invoiceDate" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">
+                      {t.invoiceDateLabel}
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="invoiceDate"
+                        type="date"
+                        value={invoiceDate}
+                        onChange={(e) => setInvoiceDate(e.target.value)}
+                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Products List */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <Receipt size={20} className="text-gray-400" />
+                    {t.ordersByDate}
+                  </h2>
+                </div>
+                
+                <div className="p-6">
+                  {groupedItems.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <p>{t.noOrders}</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-8 mb-8">
+                      {groupedItems.map(group => (
+                        <div key={group.date} className="space-y-3">
+                          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2 border-b border-gray-100 pb-2">
+                            <Calendar size={16} className="text-blue-500" />
+                            {formatDate(group.date)}
+                          </h3>
+                          <ul className="space-y-3">
+                            {group.items.map(item => (
+                              <li key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 gap-4">
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-gray-900">{item.name}</h4>
+                                  <p className="text-sm text-gray-500">{formatVND(item.price)} {t.each}</p>
+                                </div>
+                                
+                                <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
+                                  <div className="flex items-center bg-white rounded-lg border border-gray-200 shadow-sm">
+                                    <button 
+                                      onClick={() => updateQuantity(item.id, -1)}
+                                      className="px-3 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-l-lg transition-colors"
+                                    >
+                                      -
+                                    </button>
+                                    <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
+                                    <button 
+                                      onClick={() => updateQuantity(item.id, 1)}
+                                      className="px-3 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-r-lg transition-colors"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                  
+                                  <div className="w-28 text-right font-semibold text-gray-900">
+                                    {formatVND(item.price * item.quantity)}
+                                  </div>
+                                  
+                                  <button 
+                                    onClick={() => removeItem(item.id)}
+                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    aria-label="Remove item"
+                                  >
+                                    <Trash2 size={18} />
+                                  </button>
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="pt-6 border-t border-gray-100">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-4">{t.addNewOrder}</h3>
+                    <form onSubmit={addItem} className="flex flex-col gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label htmlFor="itemDate" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.orderDate}</label>
+                          <input
+                            id="itemDate"
+                            type="date"
+                            value={newItemDate}
+                            onChange={(e) => setNewItemDate(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="itemName" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.productNameLabel}</label>
+                          <input
+                            id="itemName"
+                            type="text"
+                            value={newItemName}
+                            onChange={(e) => setNewItemName(e.target.value)}
+                            placeholder={t.productNamePlaceholder}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row gap-4 items-end">
+                        <div className="w-full sm:w-1/2">
+                          <label htmlFor="itemPrice" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.priceLabel}</label>
+                          <input
+                            id="itemPrice"
+                            type="text"
+                            value={formatPriceInput(newItemPrice)}
+                            onChange={handlePriceChange}
+                            placeholder="100.000"
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                        <div className="w-full sm:w-1/4">
+                          <label htmlFor="itemQty" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.quantityLabel}</label>
+                          <input
+                            id="itemQty"
+                            type="number"
+                            min="1"
+                            value={newItemQuantity}
+                            onChange={(e) => setNewItemQuantity(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                        <button 
+                          type="submit"
+                          className="w-full sm:w-1/4 px-6 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 h-[46px]"
+                        >
+                          <Plus size={18} />
+                          {t.addBtn}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Summary */}
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden sticky top-8">
+                <div className="p-6 border-b border-gray-100 bg-gray-900 text-white">
+                  <h2 className="text-lg font-semibold mb-4">{t.invoiceSummary}</h2>
+                  <div className="text-3xl font-light tracking-tight mb-1 break-words">
+                    {formatVND(total)}
+                  </div>
+                  <div className="text-gray-400 text-sm">{t.totalAmount}</div>
+                </div>
+                
+                <div className="p-6 space-y-6 bg-gray-50">
+                  <div className="space-y-4">
+                    <div>
+                      <span className="block text-xs text-gray-500 uppercase tracking-wider mb-1">{t.billedTo}</span>
+                      <div className="font-medium text-gray-900">{customerName || '—'}</div>
+                    </div>
+                    <div>
+                      <span className="block text-xs text-gray-500 uppercase tracking-wider mb-1">{t.invoiceDateLabel.replace('2. ', '')}</span>
+                      <div className="font-medium text-gray-900">
+                        {formatDate(invoiceDate)}
+                      </div>
+                    </div>
+                    <div>
+                      <span className="block text-xs text-gray-500 uppercase tracking-wider mb-1">{t.totalProductTypes}</span>
+                      <div className="font-medium text-gray-900">
+                        {new Set(items.map(item => item.name.trim().toLowerCase())).size}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-6 border-t border-gray-200">
+                    <button
+                      onClick={saveInvoice}
+                      className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      <Save size={18} />
+                      {currentInvoiceId ? t.updateInvoice : t.saveInvoice}
+                    </button>
+                    {currentInvoiceId && (
+                      <button
+                        onClick={createNewInvoice}
+                        className="w-full mt-3 py-3 px-4 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm"
+                      >
+                        <Plus size={18} />
+                        {t.startNew}
+                      </button>
+                    )}
+                    <button
+                      onClick={exportToImage}
+                      className="w-full mt-3 py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      <Download size={18} />
+                      {t.exportImage}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Delete Confirmation Modal */}
+      {invoiceToDelete && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">{t.deleteConfirm}</h3>
+            <p className="text-gray-500 text-sm mb-6">This action cannot be undone.</p>
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={cancelDelete} 
+                className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-medium transition-colors"
+              >
+                {t.cancel}
+              </button>
+              <button 
+                onClick={executeDelete} 
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+              >
+                {t.confirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed bottom-4 right-4 bg-gray-900 text-white px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 z-50">
+          <Save size={18} className="text-green-400" />
+          <span className="font-medium">{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Hidden Export Table */}
+      <div className="absolute top-[-9999px] left-[-9999px]">
+        <div id="export-table-container" className="bg-white p-8 w-[800px]">
+          <table className="w-full border-collapse border border-black text-black font-sans text-lg">
+            <thead>
+              <tr>
+                <th colSpan={5} className="border border-black text-center py-3 text-2xl font-bold">
+                  {customerName || t.unnamedClient}
+                </th>
+              </tr>
+              <tr className="bg-white">
+                <th className="border border-black px-4 py-2 font-bold">{t.colDate}</th>
+                <th className="border border-black px-4 py-2 font-bold">{t.colProduct}</th>
+                <th className="border border-black px-4 py-2 font-bold">{t.colQty}</th>
+                <th className="border border-black px-4 py-2 font-bold">{t.colPrice}</th>
+                <th className="border border-black px-4 py-2 font-bold">{t.colTotal}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {flattenedItems.map((item, index) => (
+                <tr key={item.id} className={index % 2 === 0 ? 'bg-gray-100' : 'bg-white'}>
+                  <td className="border border-black px-4 py-2 text-center">
+                    {item.isFirstInGroup ? formatDate(item.displayDate) : ''}
+                  </td>
+                  <td className="border border-black px-4 py-2">{item.name}</td>
+                  <td className="border border-black px-4 py-2 text-center">{item.quantity}</td>
+                  <td className="border border-black px-4 py-2 text-right">
+                    {new Intl.NumberFormat('vi-VN').format(item.price)}
+                  </td>
+                  <td className="border border-black px-4 py-2 text-right">
+                    {new Intl.NumberFormat('vi-VN').format(item.price * item.quantity)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={4} className="border border-black text-center text-red-600 font-bold py-3 text-xl">
+                  {t.totalLabel}
+                </td>
+                <td className="border border-black px-4 py-3 text-red-600 font-bold text-right text-xl">
+                  {new Intl.NumberFormat('vi-VN').format(total)}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
