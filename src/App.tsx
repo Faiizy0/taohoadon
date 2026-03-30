@@ -1,9 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Eye, X, Download, LogIn, LogOut } from 'lucide-react';
+import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Eye, X, Download } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
-import { auth, db } from './firebase';
-import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User as FirebaseUser } from 'firebase/auth';
-import { collection, onSnapshot, doc, setDoc, deleteDoc, query, where } from 'firebase/firestore';
 
 interface ProductItem {
   id: string;
@@ -148,53 +145,6 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(false);
 
-  // Auth State
-  const [user, setUser] = useState<FirebaseUser | null>(null);
-  const [isAuthReady, setIsAuthReady] = useState(false);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      setIsAuthReady(true);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    if (isAuthReady && user) {
-      const q = query(collection(db, 'invoices'), where('userId', '==', user.uid));
-      const unsubscribe = onSnapshot(q, (snapshot) => {
-        const fetchedInvoices: Invoice[] = [];
-        snapshot.forEach((docSnap) => {
-          const data = docSnap.data();
-          try {
-            fetchedInvoices.push({
-              id: data.id,
-              customerName: data.customerName,
-              invoiceDate: data.invoiceDate,
-              items: JSON.parse(data.items),
-              total: data.total,
-              updatedAt: data.updatedAt
-            });
-          } catch (e) {
-            console.error("Failed to parse invoice items", e);
-          }
-        });
-        fetchedInvoices.sort((a, b) => b.updatedAt - a.updatedAt);
-        setInvoices(fetchedInvoices);
-      }, (error) => {
-        console.error('Firestore Error:', error);
-      });
-      return () => unsubscribe();
-    } else if (isAuthReady && !user) {
-      // Load from local storage if logged out
-      const saved = localStorage.getItem('invoice_history');
-      if (saved) {
-        setInvoices(JSON.parse(saved));
-      }
-    }
-  }, [isAuthReady, user]);
-
   // Current Invoice State
   const [currentInvoiceId, setCurrentInvoiceId] = useState<string | null>(() => localStorage.getItem('draft_invoiceId') || null);
   const [customerName, setCustomerName] = useState(() => localStorage.getItem('draft_customerName') || '');
@@ -215,12 +165,10 @@ export default function App() {
     return today.toISOString().split('T')[0];
   });
 
-  // Save to local storage whenever invoices change (only if not logged in)
+  // Save to local storage whenever invoices change
   useEffect(() => {
-    if (!user) {
-      localStorage.setItem('invoice_history', JSON.stringify(invoices));
-    }
-  }, [invoices, user]);
+    localStorage.setItem('invoice_history', JSON.stringify(invoices));
+  }, [invoices]);
 
   // Save draft to local storage
   useEffect(() => {
@@ -398,7 +346,7 @@ export default function App() {
     }
   };
 
-  const saveInvoice = async () => {
+  const saveInvoice = () => {
     const newInvoice: Invoice = {
       id: currentInvoiceId || Date.now().toString(),
       customerName,
@@ -408,34 +356,13 @@ export default function App() {
       updatedAt: Date.now(),
     };
 
-    if (user) {
-      try {
-        await setDoc(doc(db, 'invoices', newInvoice.id), {
-          id: newInvoice.id,
-          userId: user.uid,
-          customerName: newInvoice.customerName,
-          invoiceDate: newInvoice.invoiceDate,
-          items: JSON.stringify(newInvoice.items),
-          total: newInvoice.total,
-          updatedAt: newInvoice.updatedAt
-        });
-        if (!currentInvoiceId) {
-          setCurrentInvoiceId(newInvoice.id);
-        }
-        showToast(t.saveSuccess);
-      } catch (error) {
-        console.error("Error saving to Firestore", error);
-        showToast("Error saving invoice");
-      }
+    if (currentInvoiceId) {
+      setInvoices(invoices.map(inv => inv.id === currentInvoiceId ? newInvoice : inv));
     } else {
-      if (currentInvoiceId) {
-        setInvoices(invoices.map(inv => inv.id === currentInvoiceId ? newInvoice : inv));
-      } else {
-        setInvoices([newInvoice, ...invoices]);
-        setCurrentInvoiceId(newInvoice.id);
-      }
-      showToast(t.saveSuccess);
+      setInvoices([newInvoice, ...invoices]);
+      setCurrentInvoiceId(newInvoice.id);
     }
+    showToast(t.saveSuccess);
   };
 
   const createNewInvoice = () => {
@@ -458,27 +385,14 @@ export default function App() {
     setInvoiceToDelete(id);
   };
 
-  const executeDelete = async () => {
+  const executeDelete = () => {
     if (invoiceToDelete) {
-      if (user) {
-        try {
-          await deleteDoc(doc(db, 'invoices', invoiceToDelete));
-          if (currentInvoiceId === invoiceToDelete) {
-            createNewInvoice();
-            setView('history');
-          }
-          setInvoiceToDelete(null);
-        } catch (error) {
-          console.error("Error deleting from Firestore", error);
-        }
-      } else {
-        setInvoices(invoices.filter(inv => inv.id !== invoiceToDelete));
-        if (currentInvoiceId === invoiceToDelete) {
-          createNewInvoice();
-          setView('history');
-        }
-        setInvoiceToDelete(null);
+      setInvoices(invoices.filter(inv => inv.id !== invoiceToDelete));
+      if (currentInvoiceId === invoiceToDelete) {
+        createNewInvoice();
+        setView('history');
       }
+      setInvoiceToDelete(null);
     }
   };
 
@@ -488,23 +402,6 @@ export default function App() {
 
   const toggleLanguage = () => {
     setLang(prev => prev === 'en' ? 'vi' : 'en');
-  };
-
-  const handleLogin = async () => {
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error("Login failed", error);
-    }
-  };
-
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error("Logout failed", error);
-    }
   };
 
   return (
@@ -522,25 +419,6 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-3">
-            {user ? (
-              <button
-                onClick={handleLogout}
-                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                title={user.email || 'Logout'}
-              >
-                <img src={user.photoURL || ''} alt="User" className="w-5 h-5 rounded-full" />
-                <span className="hidden sm:inline">Logout</span>
-              </button>
-            ) : (
-              <button
-                onClick={handleLogin}
-                className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <LogIn size={16} className="text-blue-500" />
-                <span className="hidden sm:inline">Sync</span>
-              </button>
-            )}
-
             <button
               onClick={toggleLanguage}
               className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
