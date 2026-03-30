@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Download } from 'lucide-react';
-import html2canvas from 'html2canvas';
+import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Eye, X } from 'lucide-react';
 
 interface ProductItem {
   id: string;
@@ -61,7 +60,7 @@ const translations = {
     itemsCount: "types",
     each: "each",
     saveSuccess: "Invoice saved successfully!",
-    exportImage: "Export Image",
+    exportImage: "Preview Invoice",
     exportSuccess: "Image exported successfully!",
     colDate: "Ngày",
     colProduct: "Mẫu",
@@ -114,7 +113,7 @@ const translations = {
     itemsCount: "loại",
     each: "mỗi cái",
     saveSuccess: "Lưu hóa đơn thành công!",
-    exportImage: "Xuất Ảnh",
+    exportImage: "Xem Hóa đơn",
     exportSuccess: "Xuất ảnh thành công!",
     colDate: "Ngày",
     colProduct: "Mẫu",
@@ -141,6 +140,7 @@ export default function App() {
 
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   // Current Invoice State
   const [currentInvoiceId, setCurrentInvoiceId] = useState<string | null>(() => localStorage.getItem('draft_invoiceId') || null);
@@ -183,7 +183,10 @@ export default function App() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '—';
-    return new Date(dateString).toLocaleDateString(lang === 'vi' ? 'vi-VN' : 'en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
+    const d = new Date(dateString);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return `${day}/${month}/${d.getFullYear()}`;
   };
 
   const formatPriceInput = (value: string) => {
@@ -269,26 +272,12 @@ export default function App() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const exportToImage = async () => {
-    const element = document.getElementById('export-table-container');
-    if (!element) return;
-    
-    try {
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        backgroundColor: '#ffffff'
-      });
-      
-      const image = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.href = image;
-      link.download = `Invoice_${customerName || 'Unnamed'}_${new Date().getTime()}.png`;
-      link.click();
-      showToast(t.exportSuccess);
-    } catch (error) {
-      console.error('Error exporting image:', error);
-      showToast('Export failed');
-    }
+  const formatExportDate = (dateString: string) => {
+    if (!dateString) return '';
+    const d = new Date(dateString);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return `${day}/${month}/${d.getFullYear()}`;
   };
 
   const saveInvoice = () => {
@@ -694,10 +683,10 @@ export default function App() {
                       </button>
                     )}
                     <button
-                      onClick={exportToImage}
+                      onClick={() => setShowPreview(true)}
                       className="w-full mt-3 py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm"
                     >
-                      <Download size={18} />
+                      <Eye size={18} />
                       {t.exportImage}
                     </button>
                   </div>
@@ -740,54 +729,93 @@ export default function App() {
         </div>
       )}
 
-      {/* Hidden Export Table */}
-      <div className="absolute top-[-9999px] left-[-9999px]">
-        <div id="export-table-container" className="bg-white p-8 w-[800px]">
-          <table className="w-full border-collapse border border-black text-black font-sans text-lg">
-            <thead>
-              <tr>
-                <th colSpan={5} className="border border-black text-center py-3 text-2xl font-bold">
-                  {customerName || t.unnamedClient}
-                </th>
-              </tr>
-              <tr className="bg-white">
-                <th className="border border-black px-4 py-2 font-bold">{t.colDate}</th>
-                <th className="border border-black px-4 py-2 font-bold">{t.colProduct}</th>
-                <th className="border border-black px-4 py-2 font-bold">{t.colQty}</th>
-                <th className="border border-black px-4 py-2 font-bold">{t.colPrice}</th>
-                <th className="border border-black px-4 py-2 font-bold">{t.colTotal}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {flattenedItems.map((item, index) => (
-                <tr key={item.id} className={index % 2 === 0 ? 'bg-gray-100' : 'bg-white'}>
-                  <td className="border border-black px-4 py-2 text-center">
-                    {item.isFirstInGroup ? formatDate(item.displayDate) : ''}
-                  </td>
-                  <td className="border border-black px-4 py-2">{item.name}</td>
-                  <td className="border border-black px-4 py-2 text-center">{item.quantity}</td>
-                  <td className="border border-black px-4 py-2 text-right">
-                    {new Intl.NumberFormat('vi-VN').format(item.price)}
-                  </td>
-                  <td className="border border-black px-4 py-2 text-right">
-                    {new Intl.NumberFormat('vi-VN').format(item.price * item.quantity)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr>
-                <td colSpan={4} className="border border-black text-center text-red-600 font-bold py-3 text-xl">
-                  {t.totalLabel}
-                </td>
-                <td className="border border-black px-4 py-3 text-red-600 font-bold text-right text-xl">
-                  {new Intl.NumberFormat('vi-VN').format(total)}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
+      {/* Invoice Preview Modal */}
+      {showPreview && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white rounded-t-2xl z-10">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Eye className="text-green-600" />
+                {t.exportImage}
+              </h3>
+              <button 
+                onClick={() => setShowPreview(false)} 
+                className="p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 rounded-full transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="p-8 overflow-y-auto flex justify-center bg-gray-50">
+              <div id="export-table-container" className="bg-white p-8 w-[800px] shadow-sm border border-gray-200">
+                <table className="w-full border-collapse border border-black text-black font-sans text-lg">
+                  <thead>
+                    <tr>
+                      <th colSpan={5} className="border border-black text-center py-3 text-2xl font-bold bg-white">
+                        {customerName || t.unnamedClient}
+                      </th>
+                    </tr>
+                    <tr className="bg-white">
+                      <th className="border border-black px-4 py-2 font-bold">{t.colDate}</th>
+                      <th className="border border-black px-4 py-2 font-bold">{t.colProduct}</th>
+                      <th className="border border-black px-4 py-2 font-bold">{t.colQty}</th>
+                      <th className="border border-black px-4 py-2 font-bold">{t.colPrice}</th>
+                      <th className="border border-black px-4 py-2 font-bold">{t.colTotal}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {groupedItems.map((group) => {
+                      return group.items.map((item, index) => {
+                        const globalIndex = flattenedItems.findIndex(i => i.id === item.id);
+                        const isEven = globalIndex % 2 === 0;
+                        return (
+                          <tr key={item.id} className={isEven ? 'bg-gray-100' : 'bg-white'}>
+                            {index === 0 && (
+                              <td 
+                                rowSpan={group.items.length} 
+                                className="border border-black px-4 py-2 text-center align-top bg-white"
+                              >
+                                {formatExportDate(group.date)}
+                              </td>
+                            )}
+                            <td className="border border-black px-4 py-2">{item.name}</td>
+                            <td className="border border-black px-4 py-2 text-center">{item.quantity}</td>
+                            <td className="border border-black px-4 py-2">
+                              <div className="flex justify-between w-full">
+                                <span>$</span>
+                                <span>{new Intl.NumberFormat('vi-VN').format(item.price)}</span>
+                              </div>
+                            </td>
+                            <td className="border border-black px-4 py-2">
+                              <div className="flex justify-between w-full">
+                                <span>$</span>
+                                <span>{new Intl.NumberFormat('vi-VN').format(item.price * item.quantity)}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      });
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={4} className="border border-black text-center text-red-600 font-bold py-3 text-xl">
+                        {t.totalLabel}
+                      </td>
+                      <td className="border border-black px-4 py-3 text-red-600 font-bold text-xl">
+                        <div className="flex justify-between w-full">
+                          <span>$</span>
+                          <span>{new Intl.NumberFormat('vi-VN').format(total)}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
