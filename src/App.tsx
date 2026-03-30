@@ -10,11 +10,18 @@ interface ProductItem {
   orderDate: string;
 }
 
+interface AdvancePayment {
+  id: string;
+  date: string;
+  amount: number;
+}
+
 interface Invoice {
   id: string;
   customerName: string;
   invoiceDate: string;
   items: ProductItem[];
+  advances: AdvancePayment[];
   total: number;
   updatedAt: number;
 }
@@ -26,6 +33,7 @@ const translations = {
     editor: "Editor",
     history: "History",
     clientInfo: "Client Information",
+    advanceInfo: "Advance Payment",
     customerNameLabel: "1. Customer Name",
     customerNamePlaceholder: "Enter customer name",
     invoiceDateLabel: "2. Invoice Date",
@@ -43,6 +51,11 @@ const translations = {
     billedTo: "Billed To",
     totalProductTypes: "Total Product Types",
     orderDays: "Delivery Days",
+    advanceDateLabel: "Advance Date",
+    advanceAmountLabel: "Advance Amount (VND)",
+    addAdvanceBtn: "Add Advance",
+    subtotal: "Subtotal",
+    totalDue: "Total Due",
     day: "day",
     days: "days",
     saveInvoice: "Save Invoice",
@@ -82,6 +95,7 @@ const translations = {
     editor: "Soạn thảo",
     history: "Lịch sử",
     clientInfo: "Thông tin Khách hàng",
+    advanceInfo: "Thông tin Ứng trước",
     customerNameLabel: "1. Tên Khách hàng",
     customerNamePlaceholder: "Nhập tên khách hàng",
     invoiceDateLabel: "2. Ngày lập Hóa đơn",
@@ -99,6 +113,11 @@ const translations = {
     billedTo: "Người nhận",
     totalProductTypes: "Tổng số loại sản phẩm",
     orderDays: "Số ngày giao hàng",
+    advanceDateLabel: "Ngày ứng trước",
+    advanceAmountLabel: "Số tiền ứng trước (VNĐ)",
+    addAdvanceBtn: "Thêm Ứng trước",
+    subtotal: "Tổng tiền hàng",
+    totalDue: "Còn lại phải thanh toán",
     day: "ngày",
     days: "ngày",
     saveInvoice: "Lưu Hóa đơn",
@@ -155,6 +174,10 @@ export default function App() {
   const [invoiceDate, setInvoiceDate] = useState(() => {
     return localStorage.getItem('draft_invoiceDate') || new Date().toISOString().split('T')[0];
   });
+  const [advances, setAdvances] = useState<AdvancePayment[]>(() => {
+    const saved = localStorage.getItem('draft_advances');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [items, setItems] = useState<ProductItem[]>(() => {
     const saved = localStorage.getItem('draft_items');
     return saved ? JSON.parse(saved) : [];
@@ -169,6 +192,13 @@ export default function App() {
     return today.toISOString().split('T')[0];
   });
 
+  // New Advance State
+  const [newAdvanceDate, setNewAdvanceDate] = useState(() => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  });
+  const [newAdvanceAmount, setNewAdvanceAmount] = useState('');
+
   // Save to local storage whenever invoices change
   useEffect(() => {
     localStorage.setItem('invoice_history', JSON.stringify(invoices));
@@ -181,8 +211,9 @@ export default function App() {
     
     localStorage.setItem('draft_customerName', customerName);
     localStorage.setItem('draft_invoiceDate', invoiceDate);
+    localStorage.setItem('draft_advances', JSON.stringify(advances));
     localStorage.setItem('draft_items', JSON.stringify(items));
-  }, [currentInvoiceId, customerName, invoiceDate, items]);
+  }, [currentInvoiceId, customerName, invoiceDate, advances, items]);
 
   const formatVND = (amount: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
@@ -235,6 +266,27 @@ export default function App() {
     setItems(items.filter(item => item.id !== id));
   };
 
+  const addAdvance = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAdvanceDate || !newAdvanceAmount) return;
+
+    const amount = parseInt(newAdvanceAmount.replace(/\./g, ''), 10);
+    if (isNaN(amount) || amount <= 0) return;
+
+    const newAdvance: AdvancePayment = {
+      id: Date.now().toString(),
+      date: newAdvanceDate,
+      amount
+    };
+
+    setAdvances([...advances, newAdvance]);
+    setNewAdvanceAmount('');
+  };
+
+  const removeAdvance = (id: string) => {
+    setAdvances(advances.filter(adv => adv.id !== id));
+  };
+
   const updateQuantity = (id: string, delta: number) => {
     setItems(items.map(item => {
       if (item.id === id) {
@@ -245,9 +297,17 @@ export default function App() {
     }));
   };
 
-  const total = useMemo(() => {
+  const subtotal = useMemo(() => {
     return items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   }, [items]);
+
+  const parsedAdvance = useMemo(() => {
+    return advances.reduce((sum, adv) => sum + adv.amount, 0);
+  }, [advances]);
+
+  const total = useMemo(() => {
+    return Math.max(0, subtotal - parsedAdvance);
+  }, [subtotal, parsedAdvance]);
 
   const groupedItems = useMemo(() => {
     const groups = items.reduce((acc, item) => {
@@ -389,6 +449,7 @@ export default function App() {
       customerName,
       invoiceDate,
       items,
+      advances,
       total,
       updatedAt: Date.now(),
     };
@@ -406,6 +467,7 @@ export default function App() {
     setCurrentInvoiceId(null);
     setCustomerName('');
     setInvoiceDate(new Date().toISOString().split('T')[0]);
+    setAdvances([]);
     setItems([]);
     setView('editor');
   };
@@ -414,6 +476,7 @@ export default function App() {
     setCurrentInvoiceId(invoice.id);
     setCustomerName(invoice.customerName);
     setInvoiceDate(invoice.invoiceDate);
+    setAdvances(invoice.advances || []);
     setItems(invoice.items);
     setView('editor');
   };
@@ -602,6 +665,98 @@ export default function App() {
                 </div>
               </div>
 
+              {/* Advance Payment Info */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <h2 className="text-lg font-semibold flex items-center gap-2">
+                    <Receipt size={20} className="text-gray-400" />
+                    {t.advanceInfo}
+                  </h2>
+                </div>
+                
+                <div className="p-6">
+                  {advances.length > 0 && (
+                    <div className="space-y-3 mb-6">
+                      <ul className="space-y-3">
+                        {advances.map(adv => (
+                          <li key={adv.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 gap-4">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900">{formatDate(adv.date)}</h4>
+                            </div>
+                            
+                            <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
+                              <div className="w-28 text-right font-semibold text-gray-900">
+                                {formatVND(adv.amount)}
+                              </div>
+                              
+                              <button 
+                                onClick={() => removeAdvance(adv.id)}
+                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                aria-label="Remove advance"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className={advances.length > 0 ? "pt-6 border-t border-gray-100" : ""}>
+                    <form onSubmit={addAdvance} className="flex flex-col gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label htmlFor="newAdvanceDate" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">
+                            {t.advanceDateLabel}
+                          </label>
+                          <div className="relative">
+                            <input
+                              id="newAdvanceDate"
+                              type="date"
+                              value={newAdvanceDate}
+                              onChange={(e) => setNewAdvanceDate(e.target.value)}
+                              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                              required
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label htmlFor="newAdvanceAmount" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">
+                            {t.advanceAmountLabel}
+                          </label>
+                          <input
+                            id="newAdvanceAmount"
+                            type="text"
+                            value={newAdvanceAmount}
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/[^0-9]/g, '');
+                              if (val) {
+                                setNewAdvanceAmount(new Intl.NumberFormat('vi-VN').format(parseInt(val, 10)));
+                              } else {
+                                setNewAdvanceAmount('');
+                              }
+                            }}
+                            placeholder="0"
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          type="submit"
+                          className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-xl font-medium transition-colors"
+                        >
+                          <Plus size={18} />
+                          {t.addAdvanceBtn}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+
               {/* Products List */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="p-6 border-b border-gray-100">
@@ -745,11 +900,27 @@ export default function App() {
                   <div className="text-3xl font-light tracking-tight mb-1 break-words">
                     {formatVND(total)}
                   </div>
-                  <div className="text-gray-400 text-sm">{t.totalAmount}</div>
+                  <div className="text-gray-400 text-sm">{t.totalDue}</div>
                 </div>
                 
                 <div className="p-6 space-y-6 bg-gray-50">
                   <div className="space-y-4">
+                    <div className="flex justify-between items-center border-b border-gray-200 pb-2">
+                      <span className="text-sm text-gray-500">{t.subtotal}</span>
+                      <span className="font-medium text-gray-900">{formatVND(subtotal)}</span>
+                    </div>
+                    {advances.length > 0 && (
+                      <div className="space-y-2">
+                        {advances.map(adv => (
+                          <div key={adv.id} className="flex justify-between items-center border-b border-gray-200 pb-2">
+                            <span className="text-sm text-gray-500">
+                              {t.advanceAmountLabel.split(' (')[0]} ({formatDate(adv.date)})
+                            </span>
+                            <span className="font-medium text-red-600">-{formatVND(adv.amount)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     <div>
                       <span className="block text-xs text-gray-500 uppercase tracking-wider mb-1">{t.billedTo}</span>
                       <div className="font-medium text-gray-900">{customerName || '—'}</div>
@@ -918,8 +1089,32 @@ export default function App() {
                   </tbody>
                   <tfoot>
                     <tr>
+                      <td colSpan={4} className="border border-black text-center font-bold py-2 text-lg">
+                        {t.subtotal}
+                      </td>
+                      <td className="border border-black px-4 py-2 font-bold text-lg">
+                        <div className="flex justify-between w-full">
+                          <span>$</span>
+                          <span>{new Intl.NumberFormat('vi-VN').format(subtotal)}</span>
+                        </div>
+                      </td>
+                    </tr>
+                    {advances.length > 0 && advances.map(adv => (
+                      <tr key={adv.id}>
+                        <td colSpan={4} className="border border-black text-center font-bold py-2 text-lg">
+                          {t.advanceAmountLabel.split(' (')[0]} ({formatExportDate(adv.date)})
+                        </td>
+                        <td className="border border-black px-4 py-2 text-red-600 font-bold text-lg">
+                          <div className="flex justify-between w-full">
+                            <span>-$</span>
+                            <span>{new Intl.NumberFormat('vi-VN').format(adv.amount)}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                    <tr className="bg-gray-100">
                       <td colSpan={4} className="border border-black text-center text-red-600 font-bold py-3 text-xl">
-                        {t.totalLabel}
+                        {t.totalDue}
                       </td>
                       <td className="border border-black px-4 py-3 text-red-600 font-bold text-xl">
                         <div className="flex justify-between w-full">
