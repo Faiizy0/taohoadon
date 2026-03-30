@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Eye, X } from 'lucide-react';
+import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Eye, X, Download } from 'lucide-react';
+import * as htmlToImage from 'html-to-image';
 
 interface ProductItem {
   id: string;
@@ -61,7 +62,8 @@ const translations = {
     each: "each",
     saveSuccess: "Invoice saved successfully!",
     exportImage: "Preview Invoice",
-    exportSuccess: "Image exported successfully!",
+    downloadImage: "Save Image",
+    exportSuccess: "Image saved successfully!",
     colDate: "Ngày",
     colProduct: "Mẫu",
     colQty: "Số lượng",
@@ -114,7 +116,8 @@ const translations = {
     each: "mỗi cái",
     saveSuccess: "Lưu hóa đơn thành công!",
     exportImage: "Xem Hóa đơn",
-    exportSuccess: "Xuất ảnh thành công!",
+    downloadImage: "Lưu Ảnh",
+    exportSuccess: "Lưu ảnh thành công!",
     colDate: "Ngày",
     colProduct: "Mẫu",
     colQty: "Số lượng",
@@ -278,6 +281,69 @@ export default function App() {
     const day = String(d.getDate()).padStart(2, '0');
     const month = String(d.getMonth() + 1).padStart(2, '0');
     return `${day}/${month}/${d.getFullYear()}`;
+  };
+
+  const handleSaveImage = async () => {
+    const element = document.getElementById('export-table-container');
+    if (!element) return;
+    
+    try {
+      showToast('Generating image...');
+      
+      const dataUrl = await htmlToImage.toPng(element, {
+        backgroundColor: '#ffffff',
+        pixelRatio: 2,
+        style: {
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
+        }
+      });
+      
+      // Sanitize customer name to prevent invalid characters from breaking the file extension
+      const safeName = (customerName || 'Unnamed').replace(/[^a-zA-Z0-9]/g, '_');
+      const filename = `Invoice_${safeName}_${new Date().getTime()}.png`;
+      
+      const triggerDownload = () => {
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast(t.exportSuccess);
+      };
+      
+      // Try Web Share API for mobile (Save to Photos)
+      if (navigator.canShare) {
+        try {
+          const res = await fetch(dataUrl);
+          const blob = await res.blob();
+          const file = new File([blob], filename, { type: 'image/png' });
+          
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: 'Invoice',
+            });
+            showToast(t.exportSuccess);
+            return;
+          }
+        } catch (shareError) {
+          // If user cancels or it fails, fallback to standard download
+          if ((shareError as Error).name !== 'AbortError') {
+            triggerDownload();
+          }
+          return;
+        }
+      }
+      
+      // Fallback for desktop
+      triggerDownload();
+      
+    } catch (error) {
+      console.error('Error exporting image:', error);
+      showToast('Export failed');
+    }
   };
 
   const saveInvoice = () => {
@@ -738,12 +804,21 @@ export default function App() {
                 <Eye className="text-green-600" />
                 {t.exportImage}
               </h3>
-              <button 
-                onClick={() => setShowPreview(false)} 
-                className="p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 rounded-full transition-colors"
-              >
-                <X size={24} />
-              </button>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={handleSaveImage}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors shadow-sm"
+                >
+                  <Download size={18} />
+                  <span className="hidden sm:inline">{t.downloadImage}</span>
+                </button>
+                <button 
+                  onClick={() => setShowPreview(false)} 
+                  className="p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-900 rounded-full transition-colors"
+                >
+                  <X size={24} />
+                </button>
+              </div>
             </div>
             
             <div className="p-8 overflow-y-auto flex justify-center bg-gray-50">
