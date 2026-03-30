@@ -1234,13 +1234,13 @@ export default function App() {
                             <td className="border border-black px-4 py-2 text-center">{item.quantity}</td>
                             <td className="border border-black px-4 py-2">
                               <div className="flex justify-between w-full">
-                                <span>$</span>
+                                <span>Vnd</span>
                                 <span>{new Intl.NumberFormat('vi-VN').format(item.price)}</span>
                               </div>
                             </td>
                             <td className="border border-black px-4 py-2">
                               <div className="flex justify-between w-full">
-                                <span>$</span>
+                                <span>Vnd</span>
                                 <span>{new Intl.NumberFormat('vi-VN').format(item.price * item.quantity)}</span>
                               </div>
                             </td>
@@ -1256,7 +1256,7 @@ export default function App() {
                       </td>
                       <td className="border border-black px-4 py-2 font-bold text-lg">
                         <div className="flex justify-between w-full">
-                          <span>$</span>
+                          <span>Vnd</span>
                           <span>{new Intl.NumberFormat('vi-VN').format(subtotal)}</span>
                         </div>
                       </td>
@@ -1268,7 +1268,7 @@ export default function App() {
                         </td>
                         <td className="border border-black px-4 py-2 text-red-600 font-bold text-lg">
                           <div className="flex justify-between w-full">
-                            <span>-$</span>
+                            <span>-Vnd</span>
                             <span>{new Intl.NumberFormat('vi-VN').format(adv.amount)}</span>
                           </div>
                         </td>
@@ -1280,7 +1280,7 @@ export default function App() {
                       </td>
                       <td className="border border-black px-4 py-3 text-red-600 font-bold text-xl">
                         <div className="flex justify-between w-full">
-                          <span>$</span>
+                          <span>Vnd</span>
                           <span>{new Intl.NumberFormat('vi-VN').format(total)}</span>
                         </div>
                       </td>
