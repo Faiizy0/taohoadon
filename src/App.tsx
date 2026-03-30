@@ -1,6 +1,46 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Eye, X, Copy, Download } from 'lucide-react';
+import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Eye, X, Copy, Download, Settings, RefreshCw, Key } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
+import { db } from './firebase';
+import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
+
+// Firestore Error Handler
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: 'anonymous',
+      email: null,
+      emailVerified: false,
+      isAnonymous: true,
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
 
 interface ProductItem {
   id: string;
@@ -158,11 +198,19 @@ export default function App() {
   const [lang, setLang] = useState<'en' | 'vi'>('en');
   const t = translations[lang];
 
-  const [view, setView] = useState<'editor' | 'history'>('editor');
-  const [invoices, setInvoices] = useState<Invoice[]>(() => {
-    const saved = localStorage.getItem('invoice_history');
-    return saved ? JSON.parse(saved) : [];
+  const [syncKey, setSyncKey] = useState(() => {
+    const saved = localStorage.getItem('invoice_sync_key');
+    if (saved) return saved;
+    const newKey = 'sync-' + Math.random().toString(36).substring(2, 15);
+    localStorage.setItem('invoice_sync_key', newKey);
+    return newKey;
   });
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [showSyncSettings, setShowSyncSettings] = useState(false);
+  const [tempSyncKey, setTempSyncKey] = useState(syncKey);
+
+  const [view, setView] = useState<'editor' | 'history'>('editor');
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
 
   const [invoiceToDelete, setInvoiceToDelete] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -199,10 +247,38 @@ export default function App() {
   });
   const [newAdvanceAmount, setNewAdvanceAmount] = useState('');
 
-  // Save to local storage whenever invoices change
+  // Firestore listener
   useEffect(() => {
-    localStorage.setItem('invoice_history', JSON.stringify(invoices));
-  }, [invoices]);
+    if (!syncKey) return;
+
+    setIsSyncing(true);
+    const q = query(
+      collection(db, 'sync', syncKey, 'invoices'),
+      orderBy('updatedAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const docs = snapshot.docs.map(doc => doc.data() as Invoice);
+      setInvoices(docs);
+      setIsSyncing(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, `sync/${syncKey}/invoices`);
+      setIsSyncing(false);
+    });
+
+    return () => unsubscribe();
+  }, [syncKey]);
+
+  const handleUpdateSyncKey = () => {
+    if (tempSyncKey.trim().length < 8) {
+      showToast(lang === 'en' ? 'Key must be at least 8 characters' : 'Mã phải có ít nhất 8 ký tự');
+      return;
+    }
+    setSyncKey(tempSyncKey.trim());
+    localStorage.setItem('invoice_sync_key', tempSyncKey.trim());
+    setShowSyncSettings(false);
+    showToast(lang === 'en' ? 'Sync key updated!' : 'Đã cập nhật mã đồng bộ!');
+  };
 
   // Save draft to local storage
   useEffect(() => {
@@ -443,9 +519,11 @@ export default function App() {
     }
   };
 
-  const saveInvoice = () => {
-    const newInvoice: Invoice = {
-      id: currentInvoiceId || Date.now().toString(),
+  const saveInvoice = async () => {
+    const invoiceId = currentInvoiceId || Date.now().toString();
+    const newInvoice: Invoice & { syncKey: string } = {
+      id: invoiceId,
+      syncKey: syncKey,
       customerName,
       invoiceDate,
       items,
@@ -454,13 +532,13 @@ export default function App() {
       updatedAt: Date.now(),
     };
 
-    if (currentInvoiceId) {
-      setInvoices(invoices.map(inv => inv.id === currentInvoiceId ? newInvoice : inv));
-    } else {
-      setInvoices([newInvoice, ...invoices]);
-      setCurrentInvoiceId(newInvoice.id);
+    try {
+      await setDoc(doc(db, 'sync', syncKey, 'invoices', invoiceId), newInvoice);
+      setCurrentInvoiceId(invoiceId);
+      showToast(t.saveSuccess);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `sync/${syncKey}/invoices/${invoiceId}`);
     }
-    showToast(t.saveSuccess);
   };
 
   const createNewInvoice = () => {
@@ -485,14 +563,18 @@ export default function App() {
     setInvoiceToDelete(id);
   };
 
-  const executeDelete = () => {
+  const executeDelete = async () => {
     if (invoiceToDelete) {
-      setInvoices(invoices.filter(inv => inv.id !== invoiceToDelete));
-      if (currentInvoiceId === invoiceToDelete) {
-        createNewInvoice();
-        setView('history');
+      try {
+        await deleteDoc(doc(db, 'sync', syncKey, 'invoices', invoiceToDelete));
+        if (currentInvoiceId === invoiceToDelete) {
+          createNewInvoice();
+          setView('history');
+        }
+        setInvoiceToDelete(null);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.DELETE, `sync/${syncKey}/invoices/${invoiceToDelete}`);
       }
-      setInvoiceToDelete(null);
     }
   };
 
@@ -516,6 +598,14 @@ export default function App() {
           
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowSyncSettings(true)}
+                className={`flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors ${isSyncing ? 'animate-pulse' : ''}`}
+                title="Sync Settings"
+              >
+                <RefreshCw size={16} className={isSyncing ? 'animate-spin' : 'text-blue-500'} />
+                <span className="hidden sm:inline">{lang === 'en' ? 'Sync' : 'Đồng bộ'}</span>
+              </button>
               <button
                 onClick={toggleLanguage}
                 className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -968,6 +1058,80 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* Sync Settings Modal */}
+      {showSyncSettings && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <RefreshCw size={20} className="text-blue-600" />
+                {lang === 'en' ? 'Sync Across Devices' : 'Đồng bộ giữa các thiết bị'}
+              </h3>
+              <button onClick={() => setShowSyncSettings(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">
+                {lang === 'en' 
+                  ? 'Use this unique key to access your invoices on other devices. No login required!' 
+                  : 'Sử dụng mã duy nhất này để truy cập hóa đơn của bạn trên các thiết bị khác. Không cần đăng nhập!'}
+              </p>
+              
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                  {lang === 'en' ? 'Your Sync Key' : 'Mã đồng bộ của bạn'}
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <Key size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={tempSyncKey}
+                      onChange={(e) => setTempSyncKey(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                    />
+                  </div>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(syncKey);
+                      showToast(lang === 'en' ? 'Key copied!' : 'Đã sao chép mã!');
+                    }}
+                    className="p-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors text-gray-600"
+                    title="Copy Key"
+                  >
+                    <Copy size={20} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <p className="text-xs text-blue-700 leading-relaxed">
+                  <strong>{lang === 'en' ? 'How it works:' : 'Cách hoạt động:'}</strong><br />
+                  {lang === 'en' 
+                    ? '1. Copy this key. 2. Open this app on another device. 3. Paste the key here and click Update.' 
+                    : '1. Sao chép mã này. 2. Mở ứng dụng này trên thiết bị khác. 3. Dán mã vào đây và nhấn Cập nhật.'}
+                </p>
+              </div>
+            </div>
+            <div className="p-6 bg-gray-50 border-t border-gray-100 flex gap-3">
+              <button
+                onClick={() => setShowSyncSettings(false)}
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl font-medium hover:bg-gray-100 transition-colors"
+              >
+                {lang === 'en' ? 'Cancel' : 'Hủy'}
+              </button>
+              <button
+                onClick={handleUpdateSyncKey}
+                className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+              >
+                {lang === 'en' ? 'Update Key' : 'Cập nhật Mã'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {invoiceToDelete && (

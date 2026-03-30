@@ -1,59 +1,48 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
     // ===============================================================
     // Assumed Data Model
     // ===============================================================
     //
-    // Collection: invoices
-    // Document ID: {invoiceId}
+    // Collection: sync/{syncKey}/invoices
+    // Document ID: invoiceId
     // Fields:
-    //   - id: string (required) - Invoice ID
-    //   - userId: string (required) - User ID of the creator
-    //   - customerName: string (required) - Name of the customer
-    //   - invoiceDate: string (required) - Date of the invoice
-    //   - items: string (required) - JSON stringified items
-    //   - total: number (required) - Total amount
-    //   - updatedAt: number (required) - Last updated timestamp
+    //   - id: string (required) - Unique ID for the invoice.
+    //   - syncKey: string (required) - The secret key for syncing across devices.
+    //   - customerName: string (required) - Name of the customer.
+    //   - invoiceDate: string (required) - Date the invoice was created (ISO format).
+    //   - items: list (required) - List of product items.
+    //   - advances: list (optional) - List of advance payments.
+    //   - total: number (required) - Total amount due.
+    //   - updatedAt: number (required) - Timestamp of last update.
     //
     // ===============================================================
 
-    // ===============================================================
-    // Helper Functions
-    // ===============================================================
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isDocOwner() {
-      return isAuthenticated() && request.auth.uid == resource.data.userId;
-    }
-
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
-    }
-
-    function isValidInvoice(data) {
-      return hasRequiredFields(['id', 'userId', 'customerName', 'invoiceDate', 'items', 'total', 'updatedAt']) &&
-             data.id is string &&
-             data.userId is string &&
-             data.customerName is string && data.customerName.size() <= 200 &&
-             data.invoiceDate is string && data.invoiceDate.size() <= 50 &&
-             data.items is string && data.items.size() <= 1000000 &&
+    function isValidInvoice(data, syncKey) {
+      return data.keys().hasAll(['id', 'syncKey', 'customerName', 'invoiceDate', 'items', 'total', 'updatedAt']) &&
+             data.id is string && data.id.size() > 0 &&
+             data.syncKey is string && data.syncKey == syncKey &&
+             data.customerName is string && data.customerName.size() <= 100 &&
+             data.invoiceDate is string && data.invoiceDate.size() <= 20 &&
+             data.items is list && data.items.size() <= 100 &&
              data.total is number && data.total >= 0 &&
              data.updatedAt is number;
     }
 
-    match /invoices/{invoiceId} {
-      allow read: if isDocOwner();
-      allow create: if isAuthenticated() && isValidInvoice(request.resource.data) && isOwner(request.resource.data.userId);
-      allow update: if isDocOwner() && isValidInvoice(request.resource.data) && request.resource.data.userId == resource.data.userId;
-      allow delete: if isDocOwner();
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /sync/{syncKey}/invoices/{invoiceId} {
+      // Security by obscurity: only those who know the syncKey can access
+      allow read: if syncKey.size() >= 8;
+      allow create, update: if syncKey.size() >= 8 && isValidInvoice(request.resource.data, syncKey);
+      allow delete: if syncKey.size() >= 8;
+    }
+
+    match /test/connection {
+      allow read: if true;
     }
   }
 }

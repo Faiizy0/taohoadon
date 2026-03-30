@@ -2,27 +2,47 @@
   "entities": {
     "Invoice": {
       "title": "Invoice",
-      "description": "A customer invoice containing product items.",
+      "description": "A saved invoice for a customer.",
       "type": "object",
       "properties": {
-        "id": { "type": "string" },
-        "userId": { "type": "string" },
-        "customerName": { "type": "string" },
-        "invoiceDate": { "type": "string" },
+        "id": { "type": "string", "description": "Unique ID for the invoice." },
+        "syncKey": { "type": "string", "description": "The secret key for syncing across devices." },
+        "customerName": { "type": "string", "description": "Name of the customer." },
+        "invoiceDate": { "type": "string", "description": "Date the invoice was created (ISO format)." },
         "items": {
-          "type": "string",
-          "description": "JSON stringified array of items"
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string" },
+              "price": { "type": "number" },
+              "quantity": { "type": "number" },
+              "orderDate": { "type": "string" }
+            }
+          }
         },
-        "total": { "type": "number" },
-        "updatedAt": { "type": "number" }
+        "advances": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "date": { "type": "string" },
+              "amount": { "type": "number" }
+            }
+          }
+        },
+        "total": { "type": "number", "description": "Total amount due." },
+        "updatedAt": { "type": "number", "description": "Timestamp of last update." }
       },
-      "required": ["id", "userId", "customerName", "invoiceDate", "items", "total", "updatedAt"]
+      "required": ["id", "syncKey", "customerName", "invoiceDate", "items", "total", "updatedAt"]
     }
   },
   "firestore": {
-    "/invoices/{invoiceId}": {
-      "schema": { "$ref": "#/entities/Invoice" },
-      "description": "Stores user invoices"
+    "/sync/{syncKey}/invoices/{invoiceId}": {
+      "schema": "Invoice",
+      "description": "User-owned invoices synced via secret key."
     }
   }
 }
