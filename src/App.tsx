@@ -84,7 +84,7 @@ const translations = {
     productNameLabel: "3. Name of Product",
     productNamePlaceholder: "e.g. Laptop",
     quantityLabel: "4. Quantity",
-    priceLabel: "5. Price (VND)",
+    priceLabel: "5. Price ($)",
     addBtn: "Add",
     invoiceSummary: "Invoice Summary",
     totalAmount: "Total Amount",
@@ -92,7 +92,7 @@ const translations = {
     totalProductTypes: "Total Product Types",
     orderDays: "Delivery Days",
     advanceDateLabel: "Advance Date",
-    advanceAmountLabel: "Advance Amount (VND)",
+    advanceAmountLabel: "Advance Amount ($)",
     addAdvanceBtn: "Add Advance",
     subtotal: "Subtotal",
     totalDue: "Total",
@@ -108,7 +108,7 @@ const translations = {
     thDate: "Date",
     thCustomer: "Customer",
     thItems: "Items",
-    thTotal: "Total (VND)",
+    thTotal: "Total ($)",
     thActions: "Actions",
     unnamedClient: "Unnamed Client",
     itemsCount: "types",
@@ -146,7 +146,7 @@ const translations = {
     productNameLabel: "3. Tên Sản phẩm",
     productNamePlaceholder: "VD: Laptop",
     quantityLabel: "4. Số lượng",
-    priceLabel: "5. Giá (VNĐ)",
+    priceLabel: "5. Giá ($)",
     addBtn: "Thêm",
     invoiceSummary: "Tóm tắt Hóa đơn",
     totalAmount: "Tổng cộng",
@@ -154,7 +154,7 @@ const translations = {
     totalProductTypes: "Tổng số loại sản phẩm",
     orderDays: "Số ngày giao hàng",
     advanceDateLabel: "Ngày ứng trước",
-    advanceAmountLabel: "Số tiền ứng trước (VNĐ)",
+    advanceAmountLabel: "Số tiền ứng trước ($)",
     addAdvanceBtn: "Thêm Ứng trước",
     subtotal: "Tổng tiền hàng",
     totalDue: "Tổng thanh toán",
@@ -170,7 +170,7 @@ const translations = {
     thDate: "Ngày",
     thCustomer: "Khách hàng",
     thItems: "Mặt hàng",
-    thTotal: "Tổng (VNĐ)",
+    thTotal: "Tổng ($)",
     thActions: "Thao tác",
     unnamedClient: "Khách hàng ẩn danh",
     itemsCount: "loại",
@@ -291,8 +291,8 @@ export default function App() {
     localStorage.setItem('draft_items', JSON.stringify(items));
   }, [currentInvoiceId, customerName, invoiceDate, advances, items]);
 
-  const formatVND = (amount: number) => {
-    return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+  const formatCurrency = (amount: number) => {
+    return '$' + new Intl.NumberFormat('vi-VN').format(amount);
   };
 
   const formatDate = (dateString: string) => {
@@ -677,7 +677,7 @@ export default function App() {
                           <td className="p-4 text-sm text-gray-900">{formatDate(inv.invoiceDate)}</td>
                           <td className="p-4 text-sm font-medium text-gray-900">{inv.customerName || t.unnamedClient}</td>
                           <td className="p-4 text-sm text-gray-500">{new Set(inv.items.map(item => item.name.trim().toLowerCase())).size} {t.itemsCount}</td>
-                          <td className="p-4 text-sm font-semibold text-gray-900 text-right">{formatVND(inv.total)}</td>
+                          <td className="p-4 text-sm font-semibold text-gray-900 text-right">{formatCurrency(inv.total)}</td>
                           <td className="p-4 text-right">
                             <div className="flex items-center justify-end gap-2">
                               <button
@@ -774,7 +774,7 @@ export default function App() {
                             
                             <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
                               <div className="w-28 text-right font-semibold text-gray-900">
-                                {formatVND(adv.amount)}
+                                {formatCurrency(adv.amount)}
                               </div>
                               
                               <button 
@@ -872,7 +872,7 @@ export default function App() {
                               <li key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 gap-4">
                                 <div className="flex-1">
                                   <h4 className="font-medium text-gray-900">{item.name}</h4>
-                                  <p className="text-sm text-gray-500">{formatVND(item.price)} {t.each}</p>
+                                  <p className="text-sm text-gray-500">{formatCurrency(item.price)} {t.each}</p>
                                 </div>
                                 
                                 <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
@@ -893,7 +893,7 @@ export default function App() {
                                   </div>
                                   
                                   <div className="w-28 text-right font-semibold text-gray-900">
-                                    {formatVND(item.price * item.quantity)}
+                                    {formatCurrency(item.price * item.quantity)}
                                   </div>
                                   
                                   <button 
@@ -986,7 +986,7 @@ export default function App() {
                 <div className="p-6 border-b border-gray-100 bg-gray-900 text-white">
                   <h2 className="text-lg font-semibold mb-4">{t.invoiceSummary}</h2>
                   <div className="text-3xl font-light tracking-tight mb-1 break-words">
-                    {formatVND(total)}
+                    {formatCurrency(total)}
                   </div>
                   <div className="text-gray-400 text-sm">{t.totalDue}</div>
                 </div>
@@ -995,7 +995,7 @@ export default function App() {
                   <div className="space-y-4">
                     <div className="flex justify-between items-center border-b border-gray-200 pb-2">
                       <span className="text-sm text-gray-500">{t.subtotal}</span>
-                      <span className="font-medium text-gray-900">{formatVND(subtotal)}</span>
+                      <span className="font-medium text-gray-900">{formatCurrency(subtotal)}</span>
                     </div>
                     {advances.length > 0 && (
                       <div className="space-y-2">
@@ -1004,7 +1004,7 @@ export default function App() {
                             <span className="text-sm text-gray-500">
                               {t.advanceAmountLabel.split(' (')[0]} ({formatDate(adv.date)})
                             </span>
-                            <span className="font-medium text-red-600">-{formatVND(adv.amount)}</span>
+                            <span className="font-medium text-red-600">-{formatCurrency(adv.amount)}</span>
                           </div>
                         ))}
                       </div>
@@ -1234,13 +1234,13 @@ export default function App() {
                             <td className="border border-black px-4 py-2 text-center">{item.quantity}</td>
                             <td className="border border-black px-4 py-2">
                               <div className="flex justify-between w-full">
-                                <span>Vnd</span>
+                                <span>$</span>
                                 <span>{new Intl.NumberFormat('vi-VN').format(item.price)}</span>
                               </div>
                             </td>
                             <td className="border border-black px-4 py-2">
                               <div className="flex justify-between w-full">
-                                <span>Vnd</span>
+                                <span>$</span>
                                 <span>{new Intl.NumberFormat('vi-VN').format(item.price * item.quantity)}</span>
                               </div>
                             </td>
@@ -1256,7 +1256,7 @@ export default function App() {
                       </td>
                       <td className="border border-black px-4 py-2 font-bold text-lg">
                         <div className="flex justify-between w-full">
-                          <span>Vnd</span>
+                          <span>$</span>
                           <span>{new Intl.NumberFormat('vi-VN').format(subtotal)}</span>
                         </div>
                       </td>
@@ -1268,7 +1268,7 @@ export default function App() {
                         </td>
                         <td className="border border-black px-4 py-2 text-red-600 font-bold text-lg">
                           <div className="flex justify-between w-full">
-                            <span>-Vnd</span>
+                            <span>-$</span>
                             <span>{new Intl.NumberFormat('vi-VN').format(adv.amount)}</span>
                           </div>
                         </td>
@@ -1280,7 +1280,7 @@ export default function App() {
                       </td>
                       <td className="border border-black px-4 py-3 text-red-600 font-bold text-xl">
                         <div className="flex justify-between w-full">
-                          <span>Vnd</span>
+                          <span>$</span>
                           <span>{new Intl.NumberFormat('vi-VN').format(total)}</span>
                         </div>
                       </td>
