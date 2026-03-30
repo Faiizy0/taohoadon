@@ -95,7 +95,7 @@ const translations = {
     advanceAmountLabel: "Advance Amount (VND)",
     addAdvanceBtn: "Add Advance",
     subtotal: "Subtotal",
-    totalDue: "Total Due",
+    totalDue: "Total",
     day: "day",
     days: "days",
     saveInvoice: "Save Invoice",
@@ -157,7 +157,7 @@ const translations = {
     advanceAmountLabel: "Số tiền ứng trước (VNĐ)",
     addAdvanceBtn: "Thêm Ứng trước",
     subtotal: "Tổng tiền hàng",
-    totalDue: "Còn lại phải thanh toán",
+    totalDue: "Tổng thanh toán",
     day: "ngày",
     days: "ngày",
     saveInvoice: "Lưu Hóa đơn",
@@ -1198,8 +1198,8 @@ export default function App() {
               </div>
             </div>
             
-            <div className="p-8 overflow-y-auto flex justify-center bg-gray-50">
-              <div id="export-table-container" className="bg-white p-8 w-[800px] shadow-sm border border-gray-200">
+            <div className="p-8 overflow-y-auto flex justify-center bg-white">
+              <div id="export-table-container" className="bg-white p-8 w-[800px]">
                 <table className="w-full border-collapse border border-black text-black font-sans text-lg">
                   <thead>
                     <tr>
@@ -1221,7 +1221,7 @@ export default function App() {
                         const globalIndex = flattenedItems.findIndex(i => i.id === item.id);
                         const isEven = globalIndex % 2 === 0;
                         return (
-                          <tr key={item.id} className={isEven ? 'bg-gray-100' : 'bg-white'}>
+                          <tr key={item.id} className={isEven ? 'bg-[#E0E0E0]' : 'bg-white'}>
                             {index === 0 && (
                               <td 
                                 rowSpan={group.items.length} 
@@ -1274,7 +1274,7 @@ export default function App() {
                         </td>
                       </tr>
                     ))}
-                    <tr className="bg-gray-100">
+                    <tr className="bg-white">
                       <td colSpan={4} className="border border-black text-center text-red-600 font-bold py-3 text-xl">
                         {t.totalDue}
                       </td>
