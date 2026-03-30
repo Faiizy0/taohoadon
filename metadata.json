@@ -1,5 +1,5 @@
 {
-  "name": "Bill Calculator",
-  "description": "An app to calculate bill totals, including tax and tip, and split among friends.",
+  "name": "Invoice Generation",
+  "description": "Produced by Đại Vĩ",
   "requestFramePermissions": []
 }

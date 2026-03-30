@@ -68,8 +68,8 @@ interface Invoice {
 
 const translations = {
   en: {
-    appTitle: "Invoice Calculator",
-    appSubtitle: "Create bills and calculate totals in VND",
+    appTitle: "Invoice Generation",
+    appSubtitle: "Produced by Đại Vĩ",
     editor: "Editor",
     history: "History",
     clientInfo: "Client Information",
@@ -77,7 +77,7 @@ const translations = {
     customerNameLabel: "1. Customer Name",
     customerNamePlaceholder: "Enter customer name",
     invoiceDateLabel: "2. Invoice Date",
-    ordersByDate: "Deliveries by Date",
+    ordersByDate: "Delivery",
     noOrders: "No deliveries added yet.",
     addNewOrder: "Add New Delivery",
     orderDate: "Delivery Date",
@@ -130,8 +130,8 @@ const translations = {
     confirm: "Confirm Delete"
   },
   vi: {
-    appTitle: "Máy tính Hóa đơn",
-    appSubtitle: "Tạo hóa đơn và tính tổng tiền bằng VNĐ",
+    appTitle: "Tạo Hóa đơn",
+    appSubtitle: "Produced by Đại Vĩ",
     editor: "Soạn thảo",
     history: "Lịch sử",
     clientInfo: "Thông tin Khách hàng",
@@ -139,7 +139,7 @@ const translations = {
     customerNameLabel: "1. Tên Khách hàng",
     customerNamePlaceholder: "Nhập tên khách hàng",
     invoiceDateLabel: "2. Ngày lập Hóa đơn",
-    ordersByDate: "Giao hàng theo Ngày",
+    ordersByDate: "Giao hàng",
     noOrders: "Chưa có lịch giao hàng nào.",
     addNewOrder: "Thêm Lịch giao Mới",
     orderDate: "Ngày giao hàng",
