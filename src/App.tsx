@@ -583,7 +583,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans p-4 md:p-8">
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans p-3 sm:p-4 md:p-8">
       <div className="max-w-5xl mx-auto">
         <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-3">
@@ -660,47 +660,83 @@ export default function App() {
                   <p>{t.noInvoices}</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500">
-                        <th className="p-4 font-medium">{t.thDate}</th>
-                        <th className="p-4 font-medium">{t.thCustomer}</th>
-                        <th className="p-4 font-medium">{t.thItems}</th>
-                        <th className="p-4 font-medium text-right">{t.thTotal}</th>
-                        <th className="p-4 font-medium text-right">{t.thActions}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                      {invoices.sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime() || b.updatedAt - a.updatedAt).map(inv => (
-                        <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
-                          <td className="p-4 text-sm text-gray-900">{formatDate(inv.invoiceDate)}</td>
-                          <td className="p-4 text-sm font-medium text-gray-900">{inv.customerName || t.unnamedClient}</td>
-                          <td className="p-4 text-sm text-gray-500">{new Set(inv.items.map(item => item.name.trim().toLowerCase())).size} {t.itemsCount}</td>
-                          <td className="p-4 text-sm font-semibold text-gray-900 text-right">{formatCurrency(inv.total)}</td>
-                          <td className="p-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                onClick={() => loadInvoice(inv)}
-                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                title={t.updateInvoice}
-                              >
-                                <Edit size={16} />
-                              </button>
-                              <button
-                                onClick={() => confirmDelete(inv.id)}
-                                className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Delete Invoice"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            </div>
-                          </td>
+                <>
+                  {/* Desktop Table View */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100 text-xs uppercase tracking-wider text-gray-500">
+                          <th className="p-4 font-medium">{t.thDate}</th>
+                          <th className="p-4 font-medium">{t.thCustomer}</th>
+                          <th className="p-4 font-medium">{t.thItems}</th>
+                          <th className="p-4 font-medium text-right">{t.thTotal}</th>
+                          <th className="p-4 font-medium text-right">{t.thActions}</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {invoices.sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime() || b.updatedAt - a.updatedAt).map(inv => (
+                          <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="p-4 text-sm text-gray-900">{formatDate(inv.invoiceDate)}</td>
+                            <td className="p-4 text-sm font-medium text-gray-900">{inv.customerName || t.unnamedClient}</td>
+                            <td className="p-4 text-sm text-gray-500">{new Set(inv.items.map(item => item.name.trim().toLowerCase())).size} {t.itemsCount}</td>
+                            <td className="p-4 text-sm font-semibold text-gray-900 text-right">{formatCurrency(inv.total)}</td>
+                            <td className="p-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => loadInvoice(inv)}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title={t.updateInvoice}
+                                >
+                                  <Edit size={16} />
+                                </button>
+                                <button
+                                  onClick={() => confirmDelete(inv.id)}
+                                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Delete Invoice"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Card View */}
+                  <div className="md:hidden divide-y divide-gray-100">
+                    {invoices.sort((a, b) => new Date(b.invoiceDate).getTime() - new Date(a.invoiceDate).getTime() || b.updatedAt - a.updatedAt).map(inv => (
+                      <div key={inv.id} className="p-4 space-y-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">{formatDate(inv.invoiceDate)}</p>
+                            <h4 className="font-bold text-gray-900 mt-1">{inv.customerName || t.unnamedClient}</h4>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-lg font-bold text-blue-600">{formatCurrency(inv.total)}</p>
+                            <p className="text-xs text-gray-500">{new Set(inv.items.map(item => item.name.trim().toLowerCase())).size} {t.itemsCount}</p>
+                          </div>
+                        </div>
+                        <div className="flex gap-2 pt-2">
+                          <button
+                            onClick={() => loadInvoice(inv)}
+                            className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium transition-colors"
+                          >
+                            <Edit size={14} />
+                            {t.updateInvoice}
+                          </button>
+                          <button
+                            onClick={() => confirmDelete(inv.id)}
+                            className="px-4 py-2.5 bg-red-50 text-red-600 rounded-lg transition-colors flex items-center justify-center"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -710,7 +746,7 @@ export default function App() {
             <div className="lg:col-span-2 space-y-6">
               
               {/* Customer & Invoice Info */}
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6">
                 <div className="flex justify-between items-center mb-4">
                   <h2 className="text-lg font-semibold flex items-center gap-2">
                     <User size={20} className="text-gray-400" />
@@ -755,14 +791,14 @@ export default function App() {
 
               {/* Advance Payment Info */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-100">
+                <div className="p-4 sm:p-6 border-b border-gray-100">
                   <h2 className="text-lg font-semibold flex items-center gap-2">
                     <Receipt size={20} className="text-gray-400" />
                     {t.advanceInfo}
                   </h2>
                 </div>
                 
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   {advances.length > 0 && (
                     <div className="space-y-3 mb-6">
                       <ul className="space-y-3">
@@ -834,7 +870,7 @@ export default function App() {
                       <div className="flex justify-end">
                         <button
                           type="submit"
-                          className="flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-xl font-medium transition-colors"
+                          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white px-6 py-2.5 rounded-xl font-medium transition-colors"
                         >
                           <Plus size={18} />
                           {t.addAdvanceBtn}
@@ -847,14 +883,14 @@ export default function App() {
 
               {/* Products List */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                <div className="p-6 border-b border-gray-100">
+                <div className="p-4 sm:p-6 border-b border-gray-100">
                   <h2 className="text-lg font-semibold flex items-center gap-2">
                     <Receipt size={20} className="text-gray-400" />
                     {t.ordersByDate}
                   </h2>
                 </div>
                 
-                <div className="p-6">
+                <div className="p-4 sm:p-6">
                   {groupedItems.length === 0 ? (
                     <div className="text-center py-8 text-gray-400">
                       <p>{t.noOrders}</p>
@@ -983,7 +1019,7 @@ export default function App() {
             {/* Right Column: Summary */}
             <div className="space-y-6">
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden sticky top-8">
-                <div className="p-6 border-b border-gray-100 bg-gray-900 text-white">
+                <div className="p-4 sm:p-6 border-b border-gray-100 bg-gray-900 text-white">
                   <h2 className="text-lg font-semibold mb-4">{t.invoiceSummary}</h2>
                   <div className="text-3xl font-light tracking-tight mb-1 break-words">
                     {formatCurrency(total)}
@@ -991,7 +1027,7 @@ export default function App() {
                   <div className="text-gray-400 text-sm">{t.totalDue}</div>
                 </div>
                 
-                <div className="p-6 space-y-6 bg-gray-50">
+                <div className="p-4 sm:p-6 space-y-6 bg-gray-50">
                   <div className="space-y-4">
                     <div className="flex justify-between items-center border-b border-gray-200 pb-2">
                       <span className="text-sm text-gray-500">{t.subtotal}</span>
@@ -1063,7 +1099,7 @@ export default function App() {
       {showSyncSettings && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <div className="p-4 sm:p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
               <h3 className="text-lg font-bold flex items-center gap-2">
                 <RefreshCw size={20} className="text-blue-600" />
                 {lang === 'en' ? 'Sync Across Devices' : 'Đồng bộ giữa các thiết bị'}
@@ -1072,7 +1108,7 @@ export default function App() {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <p className="text-sm text-gray-600">
                 {lang === 'en' 
                   ? 'Use this unique key to access your invoices on other devices. No login required!' 
