@@ -596,8 +596,8 @@ export default function App() {
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
+            <div className="flex items-center justify-end gap-2">
               <button
                 onClick={() => setShowSyncSettings(true)}
                 className={`flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors ${isSyncing ? 'animate-pulse' : ''}`}
@@ -615,10 +615,10 @@ export default function App() {
               </button>
             </div>
 
-            <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 p-1">
+            <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 p-1 w-full sm:w-auto">
               <button
                 onClick={() => setView('editor')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   view === 'editor' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -627,7 +627,7 @@ export default function App() {
               </button>
               <button
                 onClick={() => setView('history')}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                   view === 'history' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-50'
                 }`}
               >
@@ -1198,8 +1198,9 @@ export default function App() {
               </div>
             </div>
             
-            <div className="p-8 overflow-y-auto flex justify-center bg-white">
-              <div id="export-table-container" className="bg-white p-8 w-[800px]">
+            <div className="p-4 sm:p-8 overflow-auto bg-white">
+              <div className="min-w-[800px] mx-auto flex justify-center">
+                <div id="export-table-container" className="bg-white p-4 sm:p-8 w-[800px]">
                 <table className="w-full border-collapse border border-black text-black font-sans text-lg">
                   <thead>
                     <tr>
@@ -1287,6 +1288,7 @@ export default function App() {
                     </tr>
                   </tfoot>
                 </table>
+              </div>
               </div>
             </div>
           </div>
