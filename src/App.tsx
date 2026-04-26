@@ -808,35 +808,7 @@ export default function App() {
                 </div>
                 
                 <div className="p-4 sm:p-6">
-                  {advances.length > 0 && (
-                    <div className="space-y-3 mb-6">
-                      <ul className="space-y-3">
-                        {advances.map(adv => (
-                          <li key={adv.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 gap-4">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-gray-900">{formatDate(adv.date)}</h4>
-                            </div>
-                            
-                            <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
-                              <div className="w-28 text-right font-semibold text-gray-900">
-                                {formatCurrency(adv.amount)}
-                              </div>
-                              
-                              <button 
-                                onClick={() => removeAdvance(adv.id)}
-                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                aria-label="Remove advance"
-                              >
-                                <Trash2 size={18} />
-                              </button>
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-
-                  <div className={advances.length > 0 ? "pt-6 border-t border-gray-100" : ""}>
+                  <div className="mb-6 pb-6 border-b border-gray-100">
                     <form onSubmit={addAdvance} className="flex flex-col gap-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
@@ -887,6 +859,34 @@ export default function App() {
                       </div>
                     </form>
                   </div>
+
+                  {advances.length > 0 && (
+                    <div className="space-y-3">
+                      <ul className="space-y-3">
+                        {advances.map(adv => (
+                          <li key={adv.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 gap-4">
+                            <div className="flex-1">
+                              <h4 className="font-medium text-gray-900">{formatDate(adv.date)}</h4>
+                            </div>
+                            
+                            <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
+                              <div className="w-28 text-right font-semibold text-gray-900">
+                                {formatCurrency(adv.amount)}
+                              </div>
+                              
+                              <button 
+                                onClick={() => removeAdvance(adv.id)}
+                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                aria-label="Remove advance"
+                              >
+                                <Trash2 size={18} />
+                              </button>
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -900,12 +900,77 @@ export default function App() {
                 </div>
                 
                 <div className="p-4 sm:p-6">
+                  <div className="mb-6 pb-6 border-b border-gray-100">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-4">{t.addNewOrder}</h3>
+                    <form onSubmit={addItem} className="flex flex-col gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label htmlFor="itemDate" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.orderDate}</label>
+                          <input
+                            id="itemDate"
+                            type="date"
+                            value={newItemDate}
+                            onChange={(e) => setNewItemDate(e.target.value)}
+                            className="w-full min-w-0 px-3 py-2 text-sm sm:text-base bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="itemName" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.productNameLabel}</label>
+                          <input
+                            id="itemName"
+                            type="text"
+                            value={newItemName}
+                            onChange={(e) => setNewItemName(e.target.value)}
+                            placeholder={t.productNamePlaceholder}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row gap-4 items-end">
+                        <div className="w-full sm:w-1/2">
+                          <label htmlFor="itemPrice" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.priceLabel}</label>
+                          <input
+                            id="itemPrice"
+                            type="text"
+                            value={formatPriceInput(newItemPrice)}
+                            onChange={handlePriceChange}
+                            placeholder="100.000"
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                        <div className="w-full sm:w-1/4">
+                          <label htmlFor="itemQty" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.quantityLabel}</label>
+                          <input
+                            id="itemQty"
+                            type="number"
+                            min="1"
+                            value={newItemQuantity}
+                            onChange={(e) => setNewItemQuantity(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                        <button 
+                          type="submit"
+                          className="w-full sm:w-1/4 px-6 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 h-[46px]"
+                        >
+                          <Plus size={18} />
+                          {t.addBtn}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
                   {groupedItems.length === 0 ? (
                     <div className="text-center py-8 text-gray-400">
                       <p>{t.noOrders}</p>
                     </div>
                   ) : (
-                    <div className="space-y-8 mb-8">
+                    <div className="space-y-8">
                       {groupedItems.map(group => (
                         <div key={group.date} className="space-y-3">
                           <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wider flex items-center gap-2 border-b border-gray-100 pb-2">
@@ -984,71 +1049,6 @@ export default function App() {
                       ))}
                     </div>
                   )}
-
-                  <div className="pt-6 border-t border-gray-100">
-                    <h3 className="text-sm font-semibold text-gray-700 mb-4">{t.addNewOrder}</h3>
-                    <form onSubmit={addItem} className="flex flex-col gap-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="itemDate" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.orderDate}</label>
-                          <input
-                            id="itemDate"
-                            type="date"
-                            value={newItemDate}
-                            onChange={(e) => setNewItemDate(e.target.value)}
-                            className="w-full min-w-0 px-3 py-2 text-sm sm:text-base bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                            required
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="itemName" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.productNameLabel}</label>
-                          <input
-                            id="itemName"
-                            type="text"
-                            value={newItemName}
-                            onChange={(e) => setNewItemName(e.target.value)}
-                            placeholder={t.productNamePlaceholder}
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                            required
-                          />
-                        </div>
-                      </div>
-                      
-                      <div className="flex flex-col sm:flex-row gap-4 items-end">
-                        <div className="w-full sm:w-1/2">
-                          <label htmlFor="itemPrice" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.priceLabel}</label>
-                          <input
-                            id="itemPrice"
-                            type="text"
-                            value={formatPriceInput(newItemPrice)}
-                            onChange={handlePriceChange}
-                            placeholder="100.000"
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                            required
-                          />
-                        </div>
-                        <div className="w-full sm:w-1/4">
-                          <label htmlFor="itemQty" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.quantityLabel}</label>
-                          <input
-                            id="itemQty"
-                            type="number"
-                            min="1"
-                            value={newItemQuantity}
-                            onChange={(e) => setNewItemQuantity(e.target.value)}
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                            required
-                          />
-                        </div>
-                        <button 
-                          type="submit"
-                          className="w-full sm:w-1/4 px-6 py-2.5 bg-gray-900 hover:bg-gray-800 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 h-[46px]"
-                        >
-                          <Plus size={18} />
-                          {t.addBtn}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
                 </div>
               </div>
             </div>
