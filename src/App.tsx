@@ -373,6 +373,15 @@ export default function App() {
     }));
   };
 
+  const updateItemField = (id: string, field: keyof ProductItem, value: any) => {
+    setItems(items.map(item => {
+      if (item.id === id) {
+        return { ...item, [field]: value };
+      }
+      return item;
+    }));
+  };
+
   const subtotal = useMemo(() => {
     return items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   }, [items]);
@@ -905,36 +914,64 @@ export default function App() {
                           </h3>
                           <ul className="space-y-3">
                             {group.items.map(item => (
-                              <li key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 gap-4">
-                                <div className="flex-1">
-                                  <h4 className="font-medium text-gray-900">{item.name}</h4>
-                                  <p className="text-sm text-gray-500">{formatCurrency(item.price)} {t.each}</p>
+                              <li key={item.id} className="flex flex-col lg:flex-row lg:items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 gap-4">
+                                <div className="flex-1 flex flex-col gap-1.5 min-w-0">
+                                  <input 
+                                    type="text"
+                                    value={item.name}
+                                    onChange={(e) => updateItemField(item.id, 'name', e.target.value)}
+                                    className="font-medium text-gray-900 bg-transparent border border-transparent focus:border-blue-500 hover:border-gray-300 rounded px-1.5 py-0.5 outline-none w-full transition-colors truncate"
+                                    placeholder={t.productNamePlaceholder}
+                                  />
+                                  <div className="flex items-center text-sm text-gray-500 gap-1 w-full max-w-[150px] px-1.5">
+                                    <span>$</span>
+                                    <input 
+                                      type="text"
+                                      value={item.price ? formatPriceInput(item.price.toString()) : ''}
+                                      onChange={(e) => {
+                                        const rawValue = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                                        updateItemField(item.id, 'price', rawValue ? parseFloat(rawValue) : 0);
+                                      }}
+                                      className="bg-transparent border-b border-transparent focus:border-blue-500 hover:border-gray-300 outline-none w-full transition-colors"
+                                      placeholder="0"
+                                    />
+                                    <span className="whitespace-nowrap">{t.each}</span>
+                                  </div>
                                 </div>
                                 
-                                <div className="flex items-center justify-between sm:justify-end gap-4 w-full sm:w-auto">
-                                  <div className="flex items-center bg-white rounded-lg border border-gray-200 shadow-sm">
+                                <div className="flex items-center justify-between lg:justify-end gap-3 w-full lg:w-auto mt-2 lg:mt-0 shrink-0">
+                                  <div className="flex items-center bg-white rounded-lg border border-gray-200 shadow-sm shrink-0">
                                     <button 
                                       onClick={() => updateQuantity(item.id, -1)}
-                                      className="px-3 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-l-lg transition-colors"
+                                      className="px-2 sm:px-3 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-l-lg transition-colors"
                                     >
                                       -
                                     </button>
-                                    <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
+                                    <input
+                                      type="number"
+                                      value={item.quantity === 0 ? '' : item.quantity}
+                                      min="1"
+                                      onChange={(e) => {
+                                        const qty = parseInt(e.target.value, 10);
+                                        updateItemField(item.id, 'quantity', isNaN(qty) ? 0 : qty);
+                                      }}
+                                      className="w-10 sm:w-12 text-center font-medium text-sm bg-transparent outline-none m-0 p-0 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                    />
                                     <button 
                                       onClick={() => updateQuantity(item.id, 1)}
-                                      className="px-3 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-r-lg transition-colors"
+                                      className="px-2 sm:px-3 py-1 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-r-lg transition-colors"
                                     >
                                       +
                                     </button>
                                   </div>
                                   
-                                  <div className="w-28 text-right font-semibold text-gray-900">
+                                  <div className="w-24 sm:w-28 text-right font-semibold text-gray-900 shrink-0 truncate">
                                     {formatCurrency(item.price * item.quantity)}
                                   </div>
                                   
                                   <button 
                                     onClick={() => removeItem(item.id)}
-                                    className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    className="p-1.5 sm:p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0"
                                     aria-label="Remove item"
                                   >
                                     <Trash2 size={18} />
