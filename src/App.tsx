@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Eye, X, Copy, Download, Settings, RefreshCw, Key } from 'lucide-react';
+import { Plus, Trash2, Receipt, User, Calendar, Calculator, Save, History, FileText, Edit, Globe, Eye, X, Copy, Download, Settings, RefreshCw, Key, ArrowUp } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
 import { db } from './firebase';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, query, orderBy } from 'firebase/firestore';
@@ -315,14 +315,27 @@ export default function App() {
     }
   };
 
+  const handlePriceBlur = () => {
+    if (newItemPrice) {
+      const price = parseFloat(newItemPrice);
+      if (!isNaN(price) && price <= 999 && price > 0) {
+        setNewItemPrice((price * 1000).toString());
+      }
+    }
+  };
+
   const addItem = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItemName || !newItemPrice || !newItemDate) return;
 
-    const price = parseFloat(newItemPrice);
+    let price = parseFloat(newItemPrice);
     const quantity = parseInt(newItemQuantity, 10);
 
     if (isNaN(price) || isNaN(quantity) || price < 0 || quantity < 1) return;
+
+    if (price > 0 && price <= 999) {
+      price = price * 1000;
+    }
 
     const newItem: ProductItem = {
       id: Date.now().toString(),
@@ -528,28 +541,6 @@ export default function App() {
     }
   };
 
-  const saveInvoice = async () => {
-    const invoiceId = currentInvoiceId || Date.now().toString();
-    const newInvoice: Invoice & { syncKey: string } = {
-      id: invoiceId,
-      syncKey: syncKey,
-      customerName,
-      invoiceDate,
-      items,
-      advances,
-      total,
-      updatedAt: Date.now(),
-    };
-
-    try {
-      await setDoc(doc(db, 'sync', syncKey, 'invoices', invoiceId), newInvoice);
-      setCurrentInvoiceId(invoiceId);
-      showToast(t.saveSuccess);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `sync/${syncKey}/invoices/${invoiceId}`);
-    }
-  };
-
   const createNewInvoice = () => {
     setCurrentInvoiceId(null);
     setCustomerName('');
@@ -590,6 +581,41 @@ export default function App() {
   const toggleLanguage = () => {
     setLang(prev => prev === 'en' ? 'vi' : 'en');
   };
+
+  // Auto-save logic
+  useEffect(() => {
+    if (!db || !syncKey) return;
+    
+    // Only auto-save if there's actual content to save
+    const hasContent = customerName.trim() !== '' || items.length > 0 || advances.length > 0;
+    
+    // We also only want to auto save when we're in 'editor' view to avoid accidental saves during navigation
+    if (hasContent && view === 'editor') {
+      const timeoutId = setTimeout(() => {
+        const invoiceId = currentInvoiceId || Date.now().toString();
+        const invoiceData = {
+          id: invoiceId,
+          syncKey: syncKey,
+          customerName,
+          invoiceDate,
+          items,
+          advances,
+          total,
+          updatedAt: Date.now(),
+        };
+        
+        setDoc(doc(db, 'sync', syncKey, 'invoices', invoiceId), invoiceData).catch(error => {
+          console.error("Auto-save failed:", error);
+        });
+        
+        if (!currentInvoiceId) {
+          setCurrentInvoiceId(invoiceId);
+        }
+      }, 500); // 500ms debounce
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [customerName, invoiceDate, items, advances, total, syncKey, currentInvoiceId, view]);
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 font-sans p-3 sm:p-4 md:p-8">
@@ -900,7 +926,7 @@ export default function App() {
                 </div>
                 
                 <div className="p-4 sm:p-6">
-                  <div className="mb-6 pb-6 border-b border-gray-100">
+                  <div id="add-delivery-form" className="mb-6 pb-6 border-b border-gray-100">
                     <h3 className="text-sm font-semibold text-gray-700 mb-4">{t.addNewOrder}</h3>
                     <form onSubmit={addItem} className="flex flex-col gap-4">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -930,18 +956,6 @@ export default function App() {
                       </div>
                       
                       <div className="flex flex-col sm:flex-row gap-4 items-end">
-                        <div className="w-full sm:w-1/2">
-                          <label htmlFor="itemPrice" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.priceLabel}</label>
-                          <input
-                            id="itemPrice"
-                            type="text"
-                            value={formatPriceInput(newItemPrice)}
-                            onChange={handlePriceChange}
-                            placeholder="100.000"
-                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                            required
-                          />
-                        </div>
                         <div className="w-full sm:w-1/4">
                           <label htmlFor="itemQty" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.quantityLabel}</label>
                           <input
@@ -950,6 +964,19 @@ export default function App() {
                             min="1"
                             value={newItemQuantity}
                             onChange={(e) => setNewItemQuantity(e.target.value)}
+                            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            required
+                          />
+                        </div>
+                        <div className="w-full sm:w-1/2">
+                          <label htmlFor="itemPrice" className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">{t.priceLabel}</label>
+                          <input
+                            id="itemPrice"
+                            type="text"
+                            value={formatPriceInput(newItemPrice)}
+                            onChange={handlePriceChange}
+                            onBlur={handlePriceBlur}
+                            placeholder="100.000"
                             className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                             required
                           />
@@ -996,6 +1023,13 @@ export default function App() {
                                       onChange={(e) => {
                                         const rawValue = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
                                         updateItemField(item.id, 'price', rawValue ? parseFloat(rawValue) : 0);
+                                      }}
+                                      onBlur={(e) => {
+                                        const rawValue = e.target.value.replace(/\./g, '').replace(/[^0-9]/g, '');
+                                        const price = rawValue ? parseFloat(rawValue) : 0;
+                                        if (!isNaN(price) && price > 0 && price <= 999) {
+                                          updateItemField(item.id, 'price', price * 1000);
+                                        }
                                       }}
                                       className="bg-transparent border-b border-transparent focus:border-blue-500 hover:border-gray-300 outline-none w-full transition-colors"
                                       placeholder="0"
@@ -1047,6 +1081,24 @@ export default function App() {
                           </ul>
                         </div>
                       ))}
+                      
+                      {items.length > 3 && (
+                        <div className="fixed bottom-6 right-6 z-40">
+                          <button
+                            onClick={() => {
+                              const form = document.getElementById('add-delivery-form');
+                              if (form) {
+                                const y = form.getBoundingClientRect().top + window.scrollY - 100;
+                                window.scrollTo({ top: y, behavior: 'smooth' });
+                              }
+                            }}
+                            className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 shadow-lg hover:shadow-xl rounded-full transition-all"
+                          >
+                            <ArrowUp size={20} />
+                            <span className="hidden sm:inline">{t.addNewOrder}</span>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1102,21 +1154,12 @@ export default function App() {
 
                   <div className="pt-6 border-t border-gray-200">
                     <button
-                      onClick={saveInvoice}
-                      className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm"
+                      onClick={createNewInvoice}
+                      className="w-full py-3 px-4 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm"
                     >
-                      <Save size={18} />
-                      {currentInvoiceId ? t.updateInvoice : t.saveInvoice}
+                      <Plus size={18} />
+                      {t.startNew}
                     </button>
-                    {currentInvoiceId && (
-                      <button
-                        onClick={createNewInvoice}
-                        className="w-full mt-3 py-3 px-4 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm"
-                      >
-                        <Plus size={18} />
-                        {t.startNew}
-                      </button>
-                    )}
                     <button
                       onClick={() => setShowPreview(true)}
                       className="w-full mt-3 py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-colors flex items-center justify-center gap-2 shadow-sm"
